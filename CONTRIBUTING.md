@@ -19,6 +19,17 @@ Node 22 or newer. Seed account: `admin@example.test` / `ruby-local-demo` (local 
 
 Run `npm run gates` (type check, lint, tests, build). All four must pass. The pull request template lists the rest.
 
+## README images
+
+The images in `docs/readme/` are generated, not drawn by hand. Each one is an HTML template in `docs/readme/src/`
+that uses Ruby's own design tokens (copied from `src/app.css` at render time) and the self-hosted Geist fonts, and
+frames the screenshots in `docs/readme/src/shots/`. To refresh the screenshots, run
+`RUBY_SCREENSHOTS=1 RUBY_E2E_PORT=4521 npx playwright test e2e/screenshots.spec.ts --project=desktop`, then the same
+command with `--project=iphone-402` (one after the other). It starts a local server with fictional seed data and
+also updates `docs/design/screenshots/`. Then run `npm run readme:images` (or `npm run readme:images -- banner` for
+one image) to render the PNGs. The script fails if an image is over 600 KB. Keep every name and address in them
+fictional (`@example.test`).
+
 ## Commits
 
 Use [Conventional Commits](https://www.conventionalcommits.org/): `feat(scope): ...`, `fix(scope): ...`,

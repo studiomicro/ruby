@@ -34,6 +34,7 @@
 		"db:seed:local": "node scripts/seed-local.ts",
 		"db:reset:local": "node scripts/reset-local.ts",
 		"deploy": "node scripts/deploy.ts",
+		"readme:images": "node scripts/readme-images.ts",
 		"prepare": "svelte-kit sync || echo ''"
 	},
 	"dependencies": {

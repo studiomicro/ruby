@@ -139,12 +139,15 @@ Each component starts with a header comment that states its contract. All of the
 
 ## Screenshots
 
-`docs/design/screenshots/` holds review screenshots of seven screens: home, project board, task, KB page, people,
-admin users and sign-in. Each screen is taken at 402 × 874 and 1280 × 800, in light and in dark. To regenerate them:
+`docs/design/screenshots/` holds review screenshots of eleven screens: home, project board, task, KB page, people,
+org chart, time off, the team calendar, What's new, admin users and sign-in. Each screen is taken at 402 × 874 and
+1280 × 800, in light and in dark. The same run writes the README's 2× source screenshots to `docs/readme/src/shots/`
+(see CONTRIBUTING.md › README images). To regenerate them:
 
 ```sh
 RUBY_SCREENSHOTS=1 RUBY_E2E_PORT=4451 npx playwright test e2e/screenshots.spec.ts --project=iphone-402
 RUBY_SCREENSHOTS=1 RUBY_E2E_PORT=4451 npx playwright test e2e/screenshots.spec.ts --project=desktop
 ```
 
-Run the two projects one after the other. Both create the same fictional project the first time they run.
+Run the two projects one after the other. Both create the same fictional content the first time they run: a project
+with labelled tasks, a milestone and a checklist, a KB page, and two leave requests by the seeded member.

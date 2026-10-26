@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Tour: phone</title>
+		<link rel="stylesheet" href="readme.css" />
+		<style>
+			.canvas {
+				background: linear-gradient(180deg, #dfe1e6 0%, #cfd2d9 100%);
+			}
+			.phone {
+				--s: 0.66;
+				--bezel: 8px;
+				top: 52px;
+			}
+			.p1 {
+				left: 52px;
+			}
+			.p2 {
+				left: 346px;
+			}
+			.p3 {
+				left: 640px;
+			}
+			.p4 {
+				left: 934px;
+			}
+			.label {
+				position: absolute;
+				bottom: 26px;
+				width: 270px;
+				color: #3f3f46;
+				font-size: 15px;
+				font-weight: 500;
+				text-align: center;
+			}
+		</style>
+	</head>
+	<body class="light" data-width="1240" data-height="720">
+		<div class="canvas" style="--w: 1240px; --h: 720px">
+			<div class="phone p1 light" data-shot="shots/home-phone-light.png"></div>
+			<div class="phone p2 dark" data-shot="shots/board-phone-dark.png"></div>
+			<div class="phone p3 light" data-shot="shots/time-off-phone-light.png"></div>
+			<div class="phone p4 dark" data-shot="shots/releases-phone-dark.png"></div>
+			<p class="label" style="left: 52px">Home</p>
+			<p class="label" style="left: 346px">Board</p>
+			<p class="label" style="left: 640px">Time off</p>
+			<p class="label" style="left: 934px">What's new</p>
+		</div>
+	</body>
+</html>
