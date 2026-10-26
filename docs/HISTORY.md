@@ -27,7 +27,7 @@ Open work: `docs/TASKS.md`. What is verified and how: `docs/ACCEPTANCE.md`.
 
 - **RB-00 Foundation (2026-10-26)** — invite-only accounts (first-admin `/setup`, one-use invites, user admin with a last-admin guard and unlock), PBKDF2 sign-in with lockout, hashed sessions, fail-closed throttles, Cloudflare Access JWT verification (RS256, JWKS single flight with failure back-off), CSRF/CSP/security headers, safe Markdown with mention names, responsive shell with iPhone safe-area layout, deploy script. Migrations 0000_init, 0001_search. Red team: FAIL (1 Medium, 9 Low) then PASS after cycle 1; L4 (sign-in timing) and L7 (Access e-mail vs account e-mail) accepted. NOT verified: a real Access-authenticated request reaching the app (owner sign-in still blocked by the Access policy).
 
-- **Project start (2026-10-26)** — owner decisions recorded in `CLAUDE.md`; multi-agent pipeline and docs ported from Montra. No feature code yet.
+- **Project start (2026-10-26)** — owner decisions recorded in `CLAUDE.md`; multi-agent pipeline and docs set up. No feature code yet.
 
 ## Test evidence log
 

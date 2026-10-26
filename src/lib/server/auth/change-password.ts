@@ -6,7 +6,7 @@ import { newCredential } from './password';
 
 /**
  * Replaces the password of `userId`, guarded on `provenHash` (the stored hash the current password was just proven
- * against), in one `db.batch` (one D1 transaction), ported from Montra without its account-key re-wrap:
+ * against), in one `db.batch` (one D1 transaction):
  *
  * 1. the credential UPDATE, only while the hash is still `provenHash`;
  * 2. every other session of the user is revoked (a password change is how people answer a suspected compromise),

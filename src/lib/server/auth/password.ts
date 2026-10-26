@@ -3,9 +3,9 @@ import type { Db } from '../db';
 import { userPasswords, users } from '../db/schema';
 
 /**
- * Password sign-in, ported from Montra (`src/lib/server/auth/password.ts`, itself from SENTRA).
+ * Password sign-in.
  *
- * PBKDF2-HMAC-SHA256 is the only key derivation Workers' WebCrypto offers. SENTRA measured 100,000 iterations at
+ * PBKDF2-HMAC-SHA256 is the only key derivation Workers' WebCrypto offers. 100,000 iterations measured at
  * about 8 ms CPU in workerd, the most a deployed Worker derives (see PBKDF2_MAX_ITERATIONS).
  */
 export const PBKDF2_ITERATIONS = 100_000;

@@ -1,5 +1,5 @@
 /**
- * Cross-site form protection, ported from Montra and applied first in hooks.server.ts. SvelteKit's own check
+ * Cross-site form protection, applied first in hooks.server.ts. SvelteKit's own check
  * (`csrf.trustedOrigins`, https://svelte.dev/docs/kit/configuration#csrf) runs before any hook, so its plain-text
  * 403 would leave without the security headers every other response carries. vite.config.ts therefore sets
  * `trustedOrigins: ['*']` (Kit's documented way to turn its check off) and this module applies the identical rule —

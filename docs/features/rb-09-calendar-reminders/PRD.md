@@ -125,7 +125,7 @@ Rules: fire time must be at least 60 s in the future at creation ("That time has
 
 ### 4. Scheduler: `workers/jobs`
 
-A separate Worker `ruby-jobs` (as in Montra) because `@sveltejs/adapter-cloudflare` builds `_worker.js` with a `fetch` handler only; a `scheduled` handler would need a custom wrapper around the generated file, fragile on every SvelteKit upgrade.
+A separate Worker `ruby-jobs` because `@sveltejs/adapter-cloudflare` builds `_worker.js` with a `fetch` handler only; a `scheduled` handler would need a custom wrapper around the generated file, fragile on every SvelteKit upgrade.
 
 - `workers/jobs/wrangler.jsonc`: `name: "ruby-jobs"`, same `account_id`, `main: "src/index.ts"`, `compatibility_date` and flags equal to the app, `workers_dev: false`, **no routes, no assets, no R2**, `triggers: { crons: ["* * * * *"] }`, `d1_databases` with binding `DB`, the **same** `database_name` and `database_id` as the app config (no `migrations_dir`: migrations belong to the app config), `vars: { TEAM_TIME_ZONE, REMINDER_EMAIL_FROM: "" }`, `observability: { enabled: true, logs: { invocation_logs: false } }`. `fetch` handler returns 404. Secrets: none.
 - `workers/jobs/src/index.ts`: `export default { scheduled(controller, env, ctx) { ctx.waitUntil(runJobs(env.DB, Date.now(), env)) }, fetch: () => new Response('Not found', { status: 404 }) }`. Shared logic lives in `src/lib/server/reminders/` (pure and D1 code imported by both Workers), so Vitest tests the same functions. If `#lib/*` does not resolve in the jobs bundle, use relative imports; the engineer decides and proves it with `wrangler deploy --dry-run`.
