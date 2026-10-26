@@ -14,6 +14,8 @@ import { insertUser } from '../helpers/users';
 
 vi.mock('#lib/server/env', () => ({ getEnv: () => ({ TEAM_TIME_ZONE: 'Asia/Jakarta' }) }));
 vi.mock('$app/forms', () => ({ enhance: () => ({ destroy() {} }) }));
+// RB-20 Part B: the calendar page steps its grid on navigation; no navigation happens in a server render.
+vi.mock('$app/navigation', () => ({ afterNavigate: () => {} }));
 
 const newEvent = await import('../../src/routes/(app)/calendar/events/new/+page.server');
 const detail = await import('../../src/routes/(app)/calendar/events/[id]/+page.server');

@@ -15,7 +15,7 @@
 	"observability": { "enabled": true, "logs": { "invocation_logs": false } },
 	"vars": {
 		// Kept equal to the app's APP_VERSION (scripts/deploy.ts › deployProblems checks it).
-		"APP_VERSION": "0.4.0",
+		"APP_VERSION": "0.5.0",
 		"TEAM_TIME_ZONE": "Asia/Jakarta",
 		// PLACEHOLDER host (RUBY_APP_HOST), for the links in reminder e-mail.
 		"APP_HOST": "ruby.example.invalid",

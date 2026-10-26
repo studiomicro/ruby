@@ -14,6 +14,7 @@
 		disabled = false,
 		loading = false,
 		loadingLabel,
+		saved = false,
 		full = false,
 		href,
 		formaction,
@@ -30,6 +31,8 @@
 		/** The form is being sent: the button is disabled and shows `loadingLabel` (default: its own label). */
 		loading?: boolean;
 		loadingLabel?: string;
+		/** RB-20 Part B: the server confirmed the save; shows "Saved" with a tick (the page clears it after a moment). */
+		saved?: boolean;
 		full?: boolean;
 		/** Renders a link styled as a button. */
 		href?: string;
@@ -63,6 +66,8 @@
 		{#if loading}
 			<span class="spinner" aria-hidden="true"></span>
 			{#if loadingLabel}{loadingLabel}{:else}{@render children()}{/if}
+		{:else if saved}
+			<span class="tick" aria-hidden="true"></span>Saved
 		{:else}
 			{@render children()}
 		{/if}
@@ -160,7 +165,40 @@
 		border: 2px solid currentColor;
 		border-right-color: transparent;
 		border-radius: 50%;
-		animation: spin 0.7s linear infinite;
+		animation: spin var(--dur-loop) linear infinite;
+	}
+	/* RB-20 Part B: the saved tick scales in from 0.8 (`--dur-fast`); under reduced motion it is simply there. */
+	.tick {
+		width: 10px;
+		height: 6px;
+		margin: -3px 1px 0;
+		border-bottom: 2px solid currentColor;
+		border-left: 2px solid currentColor;
+		transform: rotate(-45deg);
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.tick {
+			animation-name: tick-in;
+			animation-duration: var(--dur-fast);
+			animation-timing-function: var(--ease-out);
+		}
+		@keyframes tick-in {
+			from {
+				opacity: 0;
+				transform: rotate(-45deg) scale(0.8);
+			}
+		}
+		/* A pressed button dips a little: immediate feedback for a tap. */
+		.btn {
+			transition:
+				background-color var(--dur-fast) var(--ease),
+				border-color var(--dur-fast) var(--ease),
+				color var(--dur-fast) var(--ease),
+				transform var(--dur-fast) var(--ease);
+		}
+		.btn:active:not(:disabled) {
+			transform: scale(0.97);
+		}
 	}
 	@keyframes spin {
 		to {

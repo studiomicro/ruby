@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import Badge from '#lib/ui/kit/Badge.svelte';
+	import InstallEntry from '#lib/ui/pwa/InstallEntry.svelte';
+	import RefreshAction from '#lib/ui/pwa/RefreshAction.svelte';
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';
 	import PageHeader from '#lib/ui/kit/PageHeader.svelte';
@@ -9,6 +11,9 @@
 
 	let { data, form } = $props();
 	let savingName = $state(false);
+	/** RB-20 Part B: "Saved" with a tick on the button for a moment after the server confirmed the name. */
+	let nameSaved = $state(false);
+	let nameSavedTimer: ReturnType<typeof setTimeout> | undefined;
 	let savingPassword = $state(false);
 	const passwordErrors = $derived(
 		(form?.passwordErrors ?? {}) as Partial<Record<'form' | 'current' | 'next', string>>
@@ -36,9 +41,15 @@
 			class="form"
 			use:enhance={() => {
 				savingName = true;
-				return async ({ update }) => {
+				nameSaved = false;
+				return async ({ update, result }) => {
 					await update({ reset: false });
 					savingName = false;
+					if (result.type === 'success') {
+						nameSaved = true;
+						clearTimeout(nameSavedTimer);
+						nameSavedTimer = setTimeout(() => (nameSaved = false), 1500);
+					}
 				};
 			}}
 		>
@@ -53,7 +64,9 @@
 				error={form?.nameError}
 			/>
 			<div>
-				<Button type="submit" loading={savingName} loadingLabel="Saving…">Save name</Button>
+				<Button type="submit" loading={savingName} loadingLabel="Saving…" saved={nameSaved}
+					>Save name</Button
+				>
 			</div>
 		</form>
 	</section>
@@ -123,9 +136,22 @@
 			</form>
 		{/if}
 	</section>
+
+	<!-- RB-20: the installed app. Both rows are app actions from #lib/ui/shell/nav (APP_ACTIONS). -->
+	<section class="panel" aria-labelledby="app-heading">
+		<h2 id="app-heading">App</h2>
+		<div class="app-rows">
+			<InstallEntry variant="account" />
+			<RefreshAction variant="account" />
+		</div>
+	</section>
 </div>
 
 <style>
+	.app-rows {
+		display: grid;
+		gap: 16px;
+	}
 	.sections {
 		display: grid;
 		gap: 20px;

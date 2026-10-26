@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { page } from '$app/state';
 	import { EMPLOYMENT_TYPE_LABELS } from '#lib/shared/enums';
 	import RevealValue from '#lib/ui/hr/RevealValue.svelte';

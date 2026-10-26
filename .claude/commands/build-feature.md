@@ -32,7 +32,7 @@ Run this pipeline for the feature request above. Derive a kebab-case `<slug>` fr
 - **Bug fixes:** regression test in the lowest layer that shows the bug.
 - **Flakes:** a failure in an untouched test is rerun once as a file; if it passes, note it and go on.
 
-1. Dispatch the `cto-strategist` subagent with the feature request. It writes `docs/features/<slug>/PRD.md`. If that file was not created, stop and report. If the PRD lists a missing prerequisite, tell the user and build only the parts that do not depend on it; the rest becomes a `**You**` To do item.
+1. Dispatch the `cto-strategist` subagent with the feature request. It writes `docs/features/<slug>/PRD.md`. The PRD must follow `docs/features/PRD_TEMPLATE.md` (Markdown format: summary table, numbered sections, `- [ ] ACn` task list, owner-decision table). If that file was not created, stop and report. If the PRD lists a missing prerequisite, tell the user and build only the parts that do not depend on it; the rest becomes a `**You**` To do item.
 
 2. Dispatch the `senior-software-engineer` subagent with the path to the PRD, instructing it to implement it.
 

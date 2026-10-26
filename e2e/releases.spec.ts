@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { expectNoHorizontalOverflow } from './helpers';
 
@@ -24,15 +25,28 @@ async function simulateNewVersion(page: import('@playwright/test').Page) {
 	}).toPass({ timeout: 15_000 });
 }
 
+/** Release versions from src/lib/content/releases/*.md, newest first. */
+function releaseVersions(): string[] {
+	const parts = (v: string) => v.split('.').map(Number);
+	return readdirSync('src/lib/content/releases')
+		.filter((f) => /^\d+\.\d+\.\d+\.md$/.test(f))
+		.map((f) => f.replace(/\.md$/, ''))
+		.sort((a, b) => {
+			const [x, y] = [parts(a), parts(b)];
+			return y[0]! - x[0]! || y[1]! - x[1]! || y[2]! - x[2]!;
+		});
+}
+
 test.describe('release notes', () => {
 	test('/releases lists the newest version first with anchors', async ({ page }) => {
 		await page.goto('/releases');
 		await expect(page.getByRole('heading', { level: 1, name: "What's new" })).toBeVisible();
 		const headings = page.locator('article.release h2');
-		await expect(headings.first()).toContainText('Version 0.4.0');
-		await expect(headings.nth(1)).toContainText('Version 0.3.0');
-		await expect(page.locator('#v0-4-0')).toBeVisible();
-		await expect(page.locator('.markdown').first()).toContainText('Reminders');
+		// The newest two release files, so the test never needs a bump when a version ships.
+		const [newest, previous] = releaseVersions();
+		await expect(headings.first()).toContainText(`Version ${newest}`);
+		await expect(headings.nth(1)).toContainText(`Version ${previous}`);
+		await expect(page.locator(`#v${newest!.replaceAll('.', '-')}`)).toBeVisible();
 		await expectNoHorizontalOverflow(page);
 	});
 

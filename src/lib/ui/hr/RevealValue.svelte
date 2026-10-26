@@ -4,7 +4,7 @@
 	without it the action's result page shows the value once (`revealed`). The value never comes from a page load.
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { onDestroy } from 'svelte';
 
 	const HIDE_AFTER_MS = 30_000;

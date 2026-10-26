@@ -4,8 +4,7 @@ import { authAttempts } from '../db/schema';
 import { sha256Hex } from '../util';
 
 /**
- * Per-client and per-user throttle, ported from Montra (`src/lib/server/auth/throttle.ts`) without its sliding,
- * token and AI budgets. Account lockout (password.ts) stops guessing at one account; this stops one client spraying
+ * Per-client and per-user throttle. Account lockout (password.ts) stops guessing at one account; this stops one client spraying
  * many accounts, burning key derivations or flooding a write path. The stored key is a SHA-256 of the scope and
  * client (or user id), so no address is kept; a window's row is replaced once it expires.
  */

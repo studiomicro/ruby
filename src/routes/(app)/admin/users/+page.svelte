@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { USER_ROLES } from '#lib/shared/enums';
 	import Avatar from '#lib/ui/kit/Avatar.svelte';
 	import Badge from '#lib/ui/kit/Badge.svelte';

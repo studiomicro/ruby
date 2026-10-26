@@ -2,7 +2,8 @@
  * The production deploy (`npm run deploy`, docs/RUNBOOK.md › Routine deploy), the only way production changes.
  * The repository is public, so the committed `wrangler.jsonc` carries placeholders for the account id, the D1 id, the
  * app's custom domain and the Cloudflare Access settings. The real values come from the environment or, for any unset
- * there, from the gitignored `.deploy.env` (`.deploy.env.example` lists them). They are written into a temporary,
+ * there, from the gitignored `.deploy.env` (`.deploy.env.example` lists them) or, when that file is absent on macOS,
+ * from a Keychain item holding the same file base64-encoded (`deployEnvFromKeychain`). They are written into a temporary,
  * gitignored `wrangler.deploy.generated.jsonc` next to each config, which every wrangler call uses (migrations, Time
  * Travel, deploy) and which is removed afterwards. No value is ever printed.
  *
@@ -327,6 +328,35 @@ function readVersions(): { packageVersion: string; latestRelease: string | undef
 	};
 }
 
+/** The Keychain item (generic password) that holds `.deploy.env` base64-encoded; RUBY_KEYCHAIN_SERVICE overrides. */
+export const KEYCHAIN_SERVICE = 'ruby-deploy-env';
+
+/**
+ * `.deploy.env` from the macOS Keychain, so the values can live encrypted at rest instead of in a plaintext file:
+ * `security add-generic-password -U -a ruby -s ruby-deploy-env -w "$(base64 < .deploy.env | tr -d '\\n')"`.
+ * Null on other platforms, when the item is missing, or when it does not decode. Never prints the value.
+ */
+export function deployEnvFromKeychain(
+	env: Record<string, string | undefined> = process.env,
+	platform: string = process.platform,
+	run: (cmd: string, args: string[]) => string = (cmd, args) =>
+		execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+): string | null {
+	if (platform !== 'darwin') return null;
+	try {
+		const encoded = run('security', [
+			'find-generic-password',
+			'-s',
+			env.RUBY_KEYCHAIN_SERVICE || KEYCHAIN_SERVICE,
+			'-w'
+		]).trim();
+		if (!/^[A-Za-z0-9+/=]+$/.test(encoded)) return null;
+		return Buffer.from(encoded, 'base64').toString('utf8');
+	} catch {
+		return null;
+	}
+}
+
 function gitStatus(): string | null {
 	try {
 		return execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' });
@@ -339,7 +369,7 @@ async function main(argv: string[]): Promise<number> {
 	const dryRun = argv.includes('--dry-run');
 	const file = existsSync(DEPLOY_ENV_FILE)
 		? parseEnvFile(readFileSync(DEPLOY_ENV_FILE, 'utf8'))
-		: {};
+		: parseEnvFile(deployEnvFromKeychain() ?? '');
 	const { values, problems: missing } = resolveDeployValues(process.env, file);
 	const rendered = Object.fromEntries(
 		CONFIGS.map((f) => [f, renderDeploy(readFileSync(f, 'utf8'), values)])

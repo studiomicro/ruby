@@ -1,4 +1,38 @@
+# Headers for static files. Workers Assets serves them without running the Worker, so hooks.server.ts never sees
+# them; adapter-cloudflare copies this file into the build. Worker responses get theirs from
+# src/lib/server/security-headers.ts and the SvelteKit CSP. Every path here still sits behind Cloudflare Access.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
 # SvelteKit polls this file to learn that a new version is deployed: no browser or shared cache may keep it.
 /_app/version.json
   ! Cache-Control
   Cache-Control: no-store
+
+# RB-20: the service worker is checked on every load, so a bad worker can be replaced at once.
+/service-worker.js
+  Cache-Control: no-cache
+
+# RB-20: the web app manifest, with its registered type.
+/manifest.webmanifest
+  ! Content-Type
+  Content-Type: application/manifest+json
+  Cache-Control: no-cache
+
+# RB-20: the offline page, shown by the service worker from its cache: no script at all, its own stylesheet, the
+# precached font and icon only, never framed.
+/offline.html
+  Content-Security-Policy: default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Cache-Control: no-cache
+
+# RB-20: icons and iOS launch images. Their names do not change with their content, so a short lifetime keeps a
+# redrawn image from being stuck in a browser for a year.
+/icons/*
+  Cache-Control: public, max-age=86400
+/splash/*
+  Cache-Control: public, max-age=86400
+/screenshots/*
+  Cache-Control: public, max-age=86400

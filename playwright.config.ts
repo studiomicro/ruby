@@ -75,6 +75,16 @@ export default defineConfig({
 			use: { ...iphone(360, 780), storageState: STORAGE_STATE },
 			dependencies: ['setup']
 		},
+		/*
+		 * RB-20 Part B: motion on (every other project keeps `reducedMotion: 'reduce'` from `use`), iPhone 17 size. It
+		 * runs the motion spec plus the shell and board layout specs, so entry animations never widen the page.
+		 */
+		{
+			name: 'motion',
+			testMatch: /(motion|shell|board-overflow)\.spec\.ts/,
+			use: { ...iphone(402, 874), storageState: STORAGE_STATE, reducedMotion: 'no-preference' },
+			dependencies: ['setup']
+		},
 		{
 			name: 'desktop',
 			use: {

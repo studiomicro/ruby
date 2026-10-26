@@ -5,7 +5,7 @@ import { sessions, userPasswords, users } from '../db/schema';
 import { newId, randomToken, sha256Hex } from '../util';
 
 /**
- * Sessions, ported from Montra (`src/lib/server/auth/session.ts`) without passkeys and push. 30-day absolute
+ * Sessions. 30-day absolute
  * lifetime, no idle sign-out; `last_seen_at` is kept for the admin list only, never for revocation.
  */
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;

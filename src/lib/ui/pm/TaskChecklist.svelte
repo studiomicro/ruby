@@ -5,7 +5,9 @@
 	project is archived.
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { flip } from 'svelte/animate';
+	import { flipParams, leave, rise } from '#lib/ui/motion';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';
 	import TextField from '#lib/ui/kit/TextField.svelte';
@@ -50,7 +52,14 @@
 	{:else}
 		<ol class="items">
 			{#each items as item, i (item.id)}
-				<li class="item" class:done={item.done}>
+				<!-- RB-20 Part B: a step added or removed after load slides in or fades out; moves glide. -->
+				<li
+					class="item"
+					class:done={item.done}
+					in:rise|local
+					out:leave|local={{ instant: true }}
+					animate:flip={flipParams(items.length)}
+				>
 					<div class="row">
 						{#if archived}
 							<span class="box" aria-hidden="true">{item.done ? '☑' : '☐'}</span>

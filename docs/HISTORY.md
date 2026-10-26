@@ -5,6 +5,8 @@ Open work: `docs/TASKS.md`. What is verified and how: `docs/ACCEPTANCE.md`.
 
 ## Completed work
 
+- **RB-20 Mobile, PWA and motion (2026-10-26, v0.5.0)** — installable app (manifest, maskable/monochrome icons, shortcuts, iPhone touch icon and launch images incl. 402x874 and 440x956), read-only offline shell service worker (precaches same-origin build files only, never pages, data, files or HR; redirects fail the install; wiped and re-shelled on sign-out), offline page and honest offline-form messages, update banner wired to a waiting worker, standalone back control, install guidance; UI motion on tokens (phone page cross-fade, sheets/dialogs/menus, board card moves, list and banner transitions, reduced motion respected). QA PASS and security PASS (L1, L2, I1 fixed; I2 offline sign-out keeps the server session — accepted). NOT verified: real iPhone/Android devices.
+
 - **RB-09 Calendar and reminders (2026-10-26, v0.4.0)** — `/calendar` month/week/agenda (agenda default on phones) aggregating task due dates, milestones, approved time off (names and day parts only) and holidays, plus first-class events (team or private, attendees, simple recurrence with limits); reminders on tasks, events and personal, delivered in-app by the new `ruby-jobs` Worker (1-minute Cron, idempotent claiming, backoff and dead-letter, 24 h late window) and by e-mail once `REMINDER_EMAIL_FROM` is set; per-user caps (500 live events, 100 events/day, 300 reminders/day). Migration 0011 (rebuilds `notifications`). QA PASS; red team PASS; 5 Low fixed in cycle 2. NOT verified: the real Cloudflare cron and Email Sending before this deploy.
 
 - **RB-06 Time off (2026-10-26, v0.3.0)** — leave types, requests counted in working days (weekends and HR-entered holidays skipped, half days), UU-default annual leave (12 days, prorated in year 1, no carry-over), approval by manager else HR/admin, audited self-approval only while no manager, other active HR user or other active admin exists, append-only leave ledger with read-only balances on GET, team calendar (names and day parts only), HR settings and holidays, terminate/delete cancels pending requests. Migration 0003_time_off (snapshot file 0011_snapshot.json because drizzle-kit chains by file name). QA PASS (2 Medium fixed); red team PASS (6 Low fixed), re-check PASS, N1 fixed in cycle 3. NOT verified: production holidays (owner enters them).
@@ -27,9 +29,11 @@ Open work: `docs/TASKS.md`. What is verified and how: `docs/ACCEPTANCE.md`.
 
 - **RB-00 Foundation (2026-10-26)** — invite-only accounts (first-admin `/setup`, one-use invites, user admin with a last-admin guard and unlock), PBKDF2 sign-in with lockout, hashed sessions, fail-closed throttles, Cloudflare Access JWT verification (RS256, JWKS single flight with failure back-off), CSRF/CSP/security headers, safe Markdown with mention names, responsive shell with iPhone safe-area layout, deploy script. Migrations 0000_init, 0001_search. Red team: FAIL (1 Medium, 9 Low) then PASS after cycle 1; L4 (sign-in timing) and L7 (Access e-mail vs account e-mail) accepted. NOT verified: a real Access-authenticated request reaching the app (owner sign-in still blocked by the Access policy).
 
-- **Project start (2026-10-26)** — owner decisions recorded in `CLAUDE.md`; multi-agent pipeline and docs ported from Montra. No feature code yet.
+- **Project start (2026-10-26)** — owner decisions recorded in `CLAUDE.md`; multi-agent pipeline and docs set up. No feature code yet.
 
 ## Test evidence log
+
+- 2026-10-26 RB-20 branch tip (= main b3d4800): `0 ERRORS 0 WARNINGS`; `Test Files 95 passed (95)`, `Tests 1815 passed (1815)`; e2e `347 passed, 182 skipped`; deploy dry-run exit 0 (Keychain).
 
 - 2026-10-26 RB-09 (load ~2): `COMPLETED 1210 FILES 0 ERRORS 0 WARNINGS`; Prettier clean; `Test Files 82 passed (82)`, `Tests 1656 passed (1656)`; e2e `283 passed`, `46 skipped`; deploy dry-run exit 0 (jobs then app).
 

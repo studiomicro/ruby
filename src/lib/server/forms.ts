@@ -61,7 +61,7 @@ async function readCapped(request: Request, max: number, timeoutMs: number): Pro
 /**
  * The form an action was sent, read within `max` bytes (FORM_BODY_MAX_BYTES unless a form names its own bound) and
  * FORM_BODY_TIMEOUT_MS. Refused with `error()` (never a 500): 415 when it is not form-encoded, 400 when oversized
- * or unparseable, 408 when the body does not end in time. Ported from Montra's `readFormBody`.
+ * or unparseable, 408 when the body does not end in time.
  */
 export async function readFormBody(
 	request: Request,

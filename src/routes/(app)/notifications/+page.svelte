@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { flip } from 'svelte/animate';
+	import { flipParams, leave, rise } from '#lib/ui/motion';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { goto } from '$app/navigation';
 	import Button from '#lib/ui/kit/Button.svelte';
 	import EmptyState from '#lib/ui/kit/EmptyState.svelte';
@@ -88,7 +90,14 @@
 {:else}
 	<ul class="list">
 		{#each data.items as n (n.id)}
-			<li class="row" class:unread={n.unread}>
+			<!-- RB-20 Part B: a row added or removed after load slides in or fades out; the rest close up. -->
+			<li
+				class="row"
+				class:unread={n.unread}
+				in:rise|local
+				out:leave|local={{ instant: true }}
+				animate:flip={flipParams(data.items.length)}
+			>
 				<span class="dot" aria-hidden="true"></span>
 				<div class="text">
 					<p class="sentence">

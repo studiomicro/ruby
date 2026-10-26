@@ -28,8 +28,7 @@ function isLocalPath(s: string): boolean {
 }
 
 /**
- * The post-sign-in redirect target: `value` when it is a path on this site, else `/`. Ported from SENTRA's
- * `safeReturnTo`: checked, resolved as a URL that must stay on the same origin, and only that URL's own path,
+ * The post-sign-in redirect target: `value` when it is a path on this site, else `/`: checked, resolved as a URL that must stay on the same origin, and only that URL's own path,
  * query and hash returned, checked once more (dot segments can normalise `/.//evil.test` into `//evil.test`).
  */
 export function safeReturnTo(value: string | null | undefined): string {

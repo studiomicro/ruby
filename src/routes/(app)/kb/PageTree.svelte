@@ -101,7 +101,7 @@
 		border-right: 1.5px solid var(--muted);
 		border-bottom: 1.5px solid var(--muted);
 		transform: rotate(-45deg);
-		transition: transform 0.12s ease;
+		transition: transform var(--dur-fast) var(--ease);
 	}
 	details[open] > summary .chevron::before {
 		transform: rotate(45deg);
