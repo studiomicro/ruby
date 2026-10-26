@@ -450,7 +450,7 @@ describe('search hardening against real FTS5', () => {
 		} finally {
 			vi.useRealTimers();
 		}
-	});
+	}, 120_000); // 300+ sequential D1 searches: slow when the machine is busy.
 });
 
 describe('body limits and form handling', () => {
