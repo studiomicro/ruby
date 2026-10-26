@@ -9,7 +9,7 @@ how tasks are written. Pipeline: engineer + QA (red team optional: query-paramet
 
 Depends on: RB-01, RB-08 (list, board, saved views), **RB-12 merged** (`/issues`, rebuilt `saved_views` with nullable
 `project_id`), RB-16 (parent dimension) and RB-17 (cycle dimension); if either is not merged, its group key is left
-out and added by that feature. Migration **`0015_view_tabs.sql`**. Version **0.8.0**.
+out and added by that feature. Migration **`0018_view_tabs.sql`**. Version **0.10.0**.
 
 ## Goal
 
@@ -109,7 +109,7 @@ is needed for this.
 
 ## Scope
 
-### Migration `0015_view_tabs.sql`
+### Migration `0018_view_tabs.sql`
 
 ```
 ALTER TABLE saved_views ADD COLUMN tab_position real;
@@ -117,9 +117,9 @@ CREATE INDEX saved_views_tabs_idx ON saved_views(user_id, project_id, tab_positi
   WHERE tab_position IS NOT NULL AND deleted_at IS NULL;
 ```
 
-Additive, leaf table, no FTS. Applies after RB-12's rebuild (`0012`); the migration test runs 0000..0015 and checks
+Additive, leaf table, no FTS. Applies after RB-12's rebuild (`0012`); the migration test runs 0000..0018 and checks
 every existing view keeps `tab_position` NULL and its query byte for byte. `schema.ts`, snapshot (next free file name;
-journal tag `0015_view_tabs`).
+journal tag `0018_view_tabs`).
 
 ### Routes
 
@@ -229,7 +229,7 @@ Tags: [A] Automated, [P] Pass, [M] manual.
    a move within a lane updates status and position as before; a move posted with a lane-changing intent is not
    possible (the form carries no lane field) and RB-01 move tests pass unchanged.
 9. [A] `cols` hides and shows columns; absent `cols` gives today's columns; stacked phone rows show the chosen chips.
-10. [A] After `0015`, every existing view has `tab_position` NULL and an identical query; `integrity_check` ok.
+10. [A] After `0018`, every existing view has `tab_position` NULL and an identical query; `integrity_check` ok.
 11. [A] Pin up to 8 per scope; the 9th is refused; 20 concurrent pins at 7 leave exactly 8; move left/right reorders
     and survives reload; unpin removes the tab; deleting a pinned view removes its tab.
 12. [A] `viewUpdate` stores the canonical form of the current URL (whitelisted keys only) for an own view; a stale
@@ -241,20 +241,20 @@ Tags: [A] Automated, [P] Pass, [M] manual.
 16. [P] Viewport spec at 360, 402, 440 px: no page-level horizontal scroll; sticky headers clear the Dynamic Island;
     tap targets ≥ 44 px.
 17. [M] Keyboard: tab strip arrow keys, group collapse with Enter/Space, headings in order; dark mode AA.
-18. [A] Release note `0.8.0.md`; versions bumped; all RB-01, RB-08, RB-12, RB-16, RB-17 tests pass; `npm run gates`
+18. [A] Release note `0.10.0.md`; versions bumped; all RB-01, RB-08, RB-12, RB-16, RB-17 tests pass; `npm run gates`
     passes; checklist probes listed.
 
 ## Test plan
 
 Unit: `parseGrouping`, `parseColumns`, canonicaliser worst cases, group ordering comparators, tab position midpoint.
-Integration: migration test 0000..0015; every group key on a 500-task seed with labels, milestones, cycles, parents,
+Integration: migration test 0000..0018; every group key on a 500-task seed with labels, milestones, cycles, parents,
 types; caps; count/total equality; label duplication; board lanes and move; view action matrix (own, other user,
 other scope, deleted); pin race; query counts and plans.
 Browser: viewport spec; no-JS grouping and tabs; keyboard lane drag.
 
 ## Out of scope
 
-Drag a card between lanes; drag to reorder groups; grouping by custom fields (RB-20); aggregates per group other
+Drag a card between lanes; drag to reorder groups; grouping by custom fields (RB-23); aggregates per group other
 than counts (sums of estimates); inline cell editing in the table; team-shared tabs; per-tab default for the whole
 team; exporting a grouped table; grouping My tasks; more than two levels.
 
@@ -272,8 +272,8 @@ switch twice" should already be fixed by RB-17; if not, fix it here.
 
 ## Migration plan
 
-1. Hand-write `0015_view_tabs.sql`; snapshot (next free file name).
-2. Migration test over seeded 0000..0014 data (criterion 10).
+1. Hand-write `0018_view_tabs.sql`; snapshot (next free file name).
+2. Migration test over seeded 0000..0017 data (criterion 10).
 3. `npm run deploy` (bookmark, additive migration, build, deploy). Rollback: `wrangler rollback`; older code ignores
    the column.
 
