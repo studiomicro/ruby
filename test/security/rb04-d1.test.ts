@@ -9,6 +9,7 @@ import { fakeEvent } from '../helpers/event';
 import { spyR2 } from '../helpers/fake-r2';
 import { insertProject, insertTask } from '../helpers/seed-kb';
 import { insertSession, insertUser } from '../helpers/users';
+import { pinToWindowStart } from '../helpers/clock';
 
 /**
  * RB-04 red-team probes through the real route handlers and hooks (docs/features/rb-04-attachments/SECURITY_REPORT.md),
@@ -525,6 +526,7 @@ describe('multipart edge cases and size enforcement', () => {
 
 describe('throttle', () => {
 	it('failed attempts count too: 20 malformed posts, then a valid one is 429 and nothing is stored', async () => {
+		pinToWindowStart(600_000);
 		for (let i = 0; i < 20; i++)
 			await call(upload.POST, uploadEvent('x', { headers: { 'content-type': 'text/plain' } }));
 		const res = await send();

@@ -19,6 +19,7 @@ import {
 	requestRow
 } from '../helpers/seed-leave';
 import { insertSession, insertUser } from '../helpers/users';
+import { pinToWindowStart } from '../helpers/clock';
 
 /**
  * RB-06 red team, cycle 1: loads and actions against local D1. Findings:
@@ -666,6 +667,7 @@ describe('plumbing', () => {
 	});
 
 	it('the 21st request in 10 minutes is throttled even when every attempt failed; others are unaffected', async () => {
+		pinToWindowStart(600_000);
 		const w = await leaveWorld(db);
 		let saturday = base;
 		while (isoWeekday(saturday) !== 6) saturday = addDays(saturday, 1);
