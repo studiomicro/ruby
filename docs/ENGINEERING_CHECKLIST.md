@@ -1,6 +1,6 @@
 # RUBY engineering checklist
 
-Recurring defect classes. The D1, web and test items are carried over from Montra's and SENTRA's pipelines, where
+Recurring defect classes. The D1, web and test items are carried over from earlier projects' pipelines, where
 each one cost a fix cycle; the role, soft-delete, search, Markdown, attachment and Access items are specific to Ruby.
 Engineers check every change against this list before handing it to QA; QA and the red team check the diff against
 it. Add an item whenever a finding repeats, and name the helper to reuse.

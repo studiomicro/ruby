@@ -2,7 +2,7 @@
 
 /*
  * Geist (SIL OFL 1.1, npm `geist@1.7.2`) is the UI font, self-hosted from `static/fonts` (CSP `font-src 'self'`, no
- * third-party request), the same files and paths as Montra. One variable file covers weights 100-900. Geist Mono is
+ * third-party request), One variable file covers weights 100-900. Geist Mono is
  * used by code only and downloads when code is on screen.
  */
 @font-face {

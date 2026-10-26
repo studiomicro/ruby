@@ -8,6 +8,7 @@ import { applyMigration, openLocalD1 } from '../helpers/d1';
 import { fakeEvent } from '../helpers/event';
 import { auditRows, grantHr, hrWorld, seedEmployee } from '../helpers/seed-hr';
 import { insertUser } from '../helpers/users';
+import { pinToWindowStart } from '../helpers/clock';
 
 /** RB-05 loads, actions and the export route called directly against local D1 (PRD acceptance criteria). */
 
@@ -330,10 +331,17 @@ describe('reveal (AC4, AC8-AC11, AC21)', () => {
 		const w = await hrWorld(db);
 		const id = w.employees.report;
 		await setSensitive(w.users.hr, id, { nik: NIK });
-		for (let i = 0; i < 30; i++) expect(status(await reveal(w.users.hr, id, 'nik'))).toBe(200);
-		const before = (await auditRows(db, { actorId: w.users.hr.id })).length;
-		expect(status(await reveal(w.users.hr, id, 'nik'))).toBe(429);
-		expect(await auditRows(db, { actorId: w.users.hr.id })).toHaveLength(before);
+		// Pinned to the start of a 10-minute window: with the real clock the 31 reveals could straddle two windows.
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(Math.floor(Date.now() / 600_000) * 600_000 + 1_000);
+		try {
+			for (let i = 0; i < 30; i++) expect(status(await reveal(w.users.hr, id, 'nik'))).toBe(200);
+			const before = (await auditRows(db, { actorId: w.users.hr.id })).length;
+			expect(status(await reveal(w.users.hr, id, 'nik'))).toBe(429);
+			expect(await auditRows(db, { actorId: w.users.hr.id })).toHaveLength(before);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
 
@@ -763,6 +771,7 @@ describe('directory, org chart, audit log, export (AC16-AC20)', () => {
 	});
 
 	it('export: HR only, tier 0 and 1, neutralised, audited, 6th in 10 minutes is 429', async () => {
+		pinToWindowStart(600_000);
 		const w = await hrWorld(db);
 		await seedEmployee(db, w.users.hr.id, { fullName: '=cmd|calc', department: w.department });
 		await setSensitive(w.users.hr, w.employees.report, { nik: NIK });
