@@ -12,6 +12,7 @@ import { fakeEvent } from '../helpers/event';
 import { spyR2 } from '../helpers/fake-r2';
 import { insertProject, insertTask } from '../helpers/seed-kb';
 import { insertUser } from '../helpers/users';
+import { pinToWindowStart } from '../helpers/clock';
 
 /**
  * RB-04 end to end through the route handlers, against local D1 and the local R2 bucket from openLocalD1 (wrapped
@@ -482,6 +483,7 @@ describe('upload', () => {
 	});
 
 	it('the 21st upload in a window is 429 and stores nothing', async () => {
+		pinToWindowStart(600_000);
 		for (let i = 0; i < 20; i++) await send({ target: { kind: 'task', id: crypto.randomUUID() } });
 		const res = await send();
 		expect(res.status).toBe(429);
