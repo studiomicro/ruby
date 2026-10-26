@@ -15,7 +15,7 @@ Before writing the PRD:
 3. Read `docs/TASKS.md` so the PRD does not duplicate open or blocked work, and note any prerequisite (for example Access variables). Read the matching rows of `docs/ACCEPTANCE.md` so acceptance criteria name the verification level they need (Pass / Automated / Mocked).
 4. Read the existing code relevant to the request (`src/routes`, `src/lib/server`, `src/lib/shared`, `src/lib/components`, `migrations`) so the PRD fits the current layout.
 
-Write the PRD to `docs/features/<slug>/PRD.md` (kebab-case slug prefixed with the RB id, e.g. `rb-02-pages`) with these sections:
+Write the PRD to `docs/features/<slug>/PRD.md` (kebab-case slug prefixed with the RB id, e.g. `rb-02-pages`). **Every new PRD must follow `docs/features/PRD_TEMPLATE.md`**: copy it, keep its 16 numbered sections in order (title, summary table, contents, then Goal, Scope, Current behaviour, Design, Routes and UI, Data and migrations, Limits, Authorization, Concurrency and failure states, Mobile and accessibility, Security and privacy, Acceptance criteria as `- [ ] ACn` task list, Test plan, Owner decisions table, Out of scope / later, Release note draft). Use tables, task lists and GitHub alerts rather than dense prose. The points below say what each part must contain:
 
 - **Goal**: one paragraph, why this feature matters for the team.
 - **Scope**: concrete list of what will be built (routes, server modules, tables/migrations, UI states).
