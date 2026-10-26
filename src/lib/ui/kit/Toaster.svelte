@@ -5,13 +5,21 @@
 	It sits above the phone tab bar and the home indicator, and bottom right from 768 px.
 -->
 <script lang="ts">
+	import { flip } from 'svelte/animate';
+	import { flipParams, leave } from '#lib/ui/motion';
 	import Icon from './Icon.svelte';
 	import { dismissToast, toasts } from './toast.svelte';
 </script>
 
 <section class="toaster" aria-label="Messages" aria-live="polite">
 	{#each toasts as toast (toast.id)}
-		<div class="toast {toast.tone}" role={toast.tone === 'error' ? 'alert' : 'status'}>
+		<!-- RB-20 Part B: a toast rises in (CSS), fades out when it leaves, and the stack closes up (FLIP). -->
+		<div
+			class="toast {toast.tone}"
+			role={toast.tone === 'error' ? 'alert' : 'status'}
+			out:leave|local
+			animate:flip={flipParams(toasts.length)}
+		>
 			<div class="text">
 				<p class="title">{toast.title}</p>
 				{#if toast.description}<p class="description">{toast.description}</p>{/if}
@@ -58,7 +66,7 @@
 		background: var(--surface);
 		box-shadow: var(--shadow-2);
 		pointer-events: auto;
-		animation: rise var(--dur) var(--ease);
+		animation: rise var(--dur) var(--ease-out);
 	}
 	@keyframes rise {
 		from {
@@ -66,9 +74,15 @@
 			transform: translateY(8px);
 		}
 	}
+	/* Under reduced motion a toast only fades in. */
 	@media (prefers-reduced-motion: reduce) {
 		.toast {
-			animation: none;
+			animation: toast-fade var(--dur-fast) var(--ease);
+		}
+		@keyframes toast-fade {
+			from {
+				opacity: 0;
+			}
 		}
 	}
 	.text {

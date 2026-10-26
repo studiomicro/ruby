@@ -22,7 +22,13 @@
 		sparkle:
 			'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z',
 		calendar:
-			'M5 5.5h14A1.5 1.5 0 0 1 20.5 7v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7A1.5 1.5 0 0 1 5 5.5zM3.5 10h17M8 3.5v4M16 3.5v4'
+			'M5 5.5h14A1.5 1.5 0 0 1 20.5 7v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7A1.5 1.5 0 0 1 5 5.5zM3.5 10h17M8 3.5v4M16 3.5v4',
+		/* RB-20: install, refresh, the standalone back control and iOS's share button. */
+		download: 'M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14',
+		refresh: 'M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.5H15',
+		back: 'M15 5l-7 7 7 7',
+		share:
+			'M12 3.5v11M8 7.5l4-4 4 4M8.5 10.5H6.5A1.5 1.5 0 0 0 5 12v7A1.5 1.5 0 0 0 6.5 20.5h11A1.5 1.5 0 0 0 19 19v-7a1.5 1.5 0 0 0-1.5-1.5h-2'
 	} as const;
 	export type IconName = keyof typeof ICONS;
 </script>

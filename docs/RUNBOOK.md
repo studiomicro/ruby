@@ -9,7 +9,12 @@ public, so no real id or hostname is committed: see "Deployment values" below. N
 
 `wrangler.jsonc` and `workers/jobs/wrangler.jsonc` hold zero placeholders (account id, D1 `database_id`, `ruby.example.invalid` host, Access team
 domain and AUD, `ACCESS_DISABLED` = `""`). The real values come from the environment or the gitignored `.deploy.env`
-(copy `.deploy.env.example`, `chmod 600`; the environment wins):
+(copy `.deploy.env.example`, `chmod 600`; the environment wins). On macOS the file can instead live encrypted in the
+Keychain: `security add-generic-password -U -a ruby -s ruby-deploy-env -w "$(base64 < .deploy.env | tr -d '\n')"`, then
+delete `.deploy.env`; `npm run deploy` reads the Keychain item when the file is absent (`RUBY_KEYCHAIN_SERVICE`
+overrides the service name). To edit a value, decode it with
+`security find-generic-password -s ruby-deploy-env -w | base64 -d > .deploy.env`, change it, store it again and delete the
+file:
 
 | Variable                  | Value                                                                   |
 | ------------------------- | ----------------------------------------------------------------------- |
@@ -217,6 +222,29 @@ title, so private events stay private; each purge writes a `calendar_events_purg
 (`/hr/audit`). Events are soft-deleted; there is no restore screen.
 
 The iCal feed (PRD section 5) is off (owner answer O4) and not built.
+
+## Installable app and offline page (RB-20)
+
+- **What is stored on a device.** The service worker (`/service-worker.js`) precaches the build's files, the icons,
+  the manifest, the Geist font and `/offline.html` under one cache, `ruby-shell-<build>`. It never stores a page,
+  `__data.json`, `/api/*`, `/files/*`, `/hr/*` or `/people/*`. Sign-out sends `Clear-Site-Data: "cache", "storage"`
+  and also tells the worker to delete every cache (Safari ignores the header).
+- **Cloudflare Access.** The manifest link carries `crossorigin="use-credentials"`, so the browser sends the Access
+  cookie with it. No path is exempt from Access (owner decision O8). If a browser cannot install Ruby because Access
+  blocks the manifest, Ruby can still be added with "Add to Home Screen"; record the browser and decide O8 again.
+- **Static files.** `wrangler.jsonc` sets `assets.html_handling` to `none`, so `/offline.html` is served at its own
+  path (no redirect to `/offline`). `_headers` gives `/service-worker.js` and the manifest `no-cache`, the offline page
+  its own CSP, and icons and launch images a one-day lifetime.
+- **A bad worker.** Deploy a fixed build: browsers check `/service-worker.js` on every load (`no-cache`), and the
+  update banner's Reload hands over to it. To clear one browser at once: sign out, or clear the site's data.
+- **Regenerating images** (by hand, then commit the outputs; never in `gates` or CI):
+  - icons from `static/favicon.svg`: `node scripts/generate-icons.ts`;
+  - iOS launch images and `src/lib/shared/splash-screens.ts`: `node scripts/generate-splash-screens.ts`;
+  - manifest screenshots, from a local server with the fictional seed data only: see the header of
+    `scripts/capture-screenshots.ts`.
+- **Real-device check (AC28).** Install on one Android phone (Chrome) and one iPhone (Safari, "Add to Home
+  Screen"); check the launch image, the status bar, the back control, landscape, and that the update banner appears
+  after a deploy. Record device names and OS versions.
 
 ## Local development
 

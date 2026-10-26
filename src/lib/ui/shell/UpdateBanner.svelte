@@ -1,13 +1,17 @@
 <!--
 	UpdateBanner: shown when SvelteKit detects a newer deployed version (`updated.current`, polled by
-	kit.version.pollInterval). Reload reloads at once, or asks first when a form on the page holds unsaved input (an
-	in-app dialog, not window.confirm). After an update the next client-side navigation becomes a full page load, so
-	an old client never runs against a new server. Sits above the phone tab bar and respects the --sai-* insets.
+	kit.version.pollInterval) or, RB-20, when a newer service worker is installed and waiting (`pwa.waiting`). Reload
+	reloads at once, or asks first when a form on the page holds unsaved input (an in-app dialog, not window.confirm);
+	with a waiting worker it first lets that worker take over (`applyUpdate`). After an update the next client-side
+	navigation becomes a full page load, so an old client never runs against a new server. Sits in the app layout's
+	banner stack, above the phone tab bar, inside the --sai-* insets.
 -->
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
 	import { updated } from '$app/state';
 	import Button from '#lib/ui/kit/Button.svelte';
+	import { leave as fadeOut, riseOrFade } from '#lib/ui/motion';
+	import { applyUpdate, pwa } from '#lib/ui/pwa/register.svelte';
 	import { hasDirtyForm } from './dirty-forms';
 
 	let dialog = $state<HTMLDialogElement>();
@@ -18,7 +22,7 @@
 		if (!updated.current || willUnload || !to?.url) return;
 		cancel();
 		if (hasDirtyForm()) confirmLeave(to.url.href);
-		else location.href = to.url.href;
+		else void applyUpdate(to.url.href);
 	});
 
 	function confirmLeave(href: string | null) {
@@ -28,20 +32,27 @@
 
 	function reload() {
 		if (hasDirtyForm()) confirmLeave(null);
-		else location.reload();
+		else void applyUpdate();
 	}
 
 	function leave() {
-		if (target) location.href = target;
-		else location.reload();
+		dialog?.close();
+		void applyUpdate(target);
 	}
 </script>
 
-{#if updated.current}
-	<div class="update" role="status">
+{#if updated.current || pwa.waiting}
+	<!-- RB-20 Part B: rises 8 px and fades in when a new version appears (never on load), fades out. -->
+	<div class="update" role="status" in:riseOrFade|local out:fadeOut|local>
 		<p>A new version of Ruby is available.</p>
 		<div class="actions">
-			<Button type="button" variant="primary" onclick={reload}>Reload</Button>
+			<Button
+				type="button"
+				variant="primary"
+				onclick={reload}
+				loading={pwa.applying}
+				loadingLabel="Reloading…">Reload</Button
+			>
 			<a class="link" href="/releases">What's new</a>
 		</div>
 	</div>
@@ -57,13 +68,8 @@
 </dialog>
 
 <style>
+	/* Placed by the app layout's banner stack (fixed, above the tab bar, z-index 25 under the More sheet). */
 	.update {
-		position: fixed;
-		/* Below the tab bar's stacking context (30), so the More sheet opened from it covers the banner. */
-		z-index: 25;
-		left: max(8px, var(--sai-left));
-		right: max(8px, var(--sai-right));
-		bottom: calc(var(--tabbar-h) + var(--sai-bottom) + 8px);
 		box-sizing: border-box;
 		display: flex;
 		flex-wrap: wrap;
@@ -111,13 +117,5 @@
 	}
 	.confirm p {
 		margin-bottom: 16px;
-	}
-	@media (min-width: 768px) {
-		.update {
-			left: auto;
-			right: max(16px, var(--sai-right));
-			bottom: calc(16px + var(--sai-bottom));
-			max-width: 420px;
-		}
 	}
 </style>

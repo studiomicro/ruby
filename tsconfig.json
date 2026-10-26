@@ -9,5 +9,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"paths": { "#lib": ["./src/lib"], "#lib/*": ["./src/lib/*"] }
 	},
-	"include": ["src", "test", "scripts", "e2e", "*.ts"]
+	"include": ["src", "test", "scripts", "e2e", "*.ts"],
+	// RB-20: the service worker has its own WebWorker typings (src/service-worker/tsconfig.json, checked by `npm run check`).
+	"exclude": ["src/service-worker"]
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { enhance, type SubmitFunction } from '$app/forms';
+	import type { SubmitFunction } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import AttachmentPanel from '#lib/ui/attachments/AttachmentPanel.svelte';
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';

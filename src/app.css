@@ -96,10 +96,18 @@
 	--radius-m: 8px;
 	--radius-l: 8px;
 	--radius-xl: 12px;
-	/* Kumo motion: 100 ms for state changes, 150 ms for overlays. */
-	--dur-fast: 100ms;
-	--dur: 150ms;
+	/*
+	 * Motion (RB-20 Part B, docs/features/rb-20-mobile-pwa/MOTION.md): 120 ms for state changes and leaving things,
+	 * 200 ms for menus, toasts, banners, list rows and the board, 280 ms for sheets and dialogs, 1200 ms for the one loop
+	 * (the skeleton shimmer). src/lib/ui/motion.ts mirrors the numbers for script (test/motion-css.test.ts checks both).
+	 */
+	--dur-fast: 120ms;
+	--dur: 200ms;
+	--dur-slow: 280ms;
+	--dur-loop: 1200ms;
 	--ease: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+	--ease-in: cubic-bezier(0.4, 0, 1, 1);
 
 	/* Shell metrics (src/routes/(app)/+layout.svelte). */
 	--sidebar-w: 232px;
@@ -251,6 +259,34 @@ body {
 	margin: 0;
 	min-height: 100dvh;
 	background: var(--bg);
+}
+
+/*
+ * RB-20, the installed app: the shell does not rubber-band and nothing refreshes by accident (pull-to-refresh is off;
+ * the Refresh action in More and Account replaces it). A browser tab keeps its native behaviour.
+ */
+@media (display-mode: standalone) {
+	html,
+	body {
+		overscroll-behavior-y: none;
+	}
+}
+html[data-display='standalone'],
+html[data-display='standalone'] body {
+	overscroll-behavior-y: none;
+}
+
+/* Scrolling inside a dialog never scrolls the page behind it. */
+dialog {
+	overscroll-behavior: contain;
+}
+
+/* RB-20: the note an enhanced form shows when it was sent offline (src/lib/ui/pwa/offline-form.ts). */
+.offline-note {
+	flex-basis: 100%;
+	margin: 8px 0 0;
+	color: var(--danger);
+	font-size: 14px;
 }
 
 /* Long words and URLs wrap instead of widening the page (360 px). */
@@ -493,4 +529,119 @@ input[type='radio']:disabled {
 	color: var(--accent);
 	font-weight: 500;
 	white-space: nowrap;
+}
+
+/*
+ * Motion (RB-20 Part B, docs/features/rb-20-mobile-pwa/MOTION.md). Only transform and opacity move; movement sits
+ * under `prefers-reduced-motion: no-preference`; test/motion-css.test.ts enforces both.
+ *
+ * Page cross-fade (phones only, started by the root layout through the View Transitions API): the old page fades out,
+ * the new one fades in rising 8 px. The shell's bars carry their own view-transition names (the app layout), so only
+ * the page content changes.
+ */
+@media (prefers-reduced-motion: no-preference) {
+	::view-transition-old(root) {
+		animation-name: page-out;
+		animation-duration: var(--dur-fast);
+		animation-timing-function: var(--ease-in);
+		animation-fill-mode: both;
+	}
+	::view-transition-new(root) {
+		animation-name: page-in;
+		animation-duration: var(--dur);
+		animation-timing-function: var(--ease-out);
+		animation-fill-mode: both;
+	}
+	@keyframes page-out {
+		to {
+			opacity: 0;
+		}
+	}
+	@keyframes page-in {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none;
+	}
+}
+
+/*
+ * Just saved (`data-saved`, set for 1200 ms by #lib/ui/motion `markSaved`): a soft tint behind the row's content that
+ * fades away. It sits under the text (negative z-index inside an isolated row), so nothing is covered or reflowed.
+ * Under reduced motion the tint is static and disappears with the attribute.
+ */
+[data-saved] {
+	position: relative;
+	isolation: isolate;
+}
+[data-saved]::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: inherit;
+	background: var(--accent-soft);
+	pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+	[data-saved]::after {
+		animation-name: saved-fade;
+		animation-duration: var(--dur-slow);
+		animation-timing-function: var(--ease);
+		animation-delay: 900ms;
+		animation-fill-mode: both;
+	}
+	@keyframes saved-fade {
+		to {
+			opacity: 0;
+		}
+	}
+}
+
+/*
+ * Loading skeletons (`.skeleton` with `aria-busy="true"` and `.bar` children): they appear only after 200 ms, so a fast load flashes
+ * nothing, and a slow gradient sweeps the bars. The sweep is the one looping animation in Ruby; reduced motion keeps
+ * the bars still.
+ */
+.skeleton[aria-busy='true'] {
+	animation-name: skeleton-in;
+	animation-duration: var(--dur-fast);
+	animation-timing-function: var(--ease);
+	animation-delay: 200ms;
+	animation-fill-mode: both;
+}
+@keyframes skeleton-in {
+	from {
+		opacity: 0;
+	}
+}
+.skeleton[aria-busy='true'] .bar {
+	position: relative;
+	overflow: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+	.skeleton[aria-busy='true'] .bar::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(90deg, transparent, var(--surface), transparent);
+		opacity: 0.6;
+		transform: translateX(-100%);
+		animation-name: shimmer;
+		animation-duration: var(--dur-loop);
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+	}
+	@keyframes shimmer {
+		to {
+			transform: translateX(100%);
+		}
+	}
 }

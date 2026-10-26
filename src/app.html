@@ -11,6 +11,18 @@
 		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfbfb" />
 		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#030303" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<!-- RB-20: installable app. The manifest is fetched with credentials so Cloudflare Access lets it through. -->
+		<link
+			rel="manifest"
+			href="%sveltekit.assets%/manifest.webmanifest"
+			crossorigin="use-credentials"
+		/>
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/apple-touch-icon.png" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<!-- Kept for iOS before 16.4, which reads only this name. -->
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<!-- `default`: an opaque system status bar in the theme colour; nothing is drawn under the clock. -->
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link
 			rel="preload"
 			href="%sveltekit.assets%/fonts/geist/1.7.2/Geist-Variable.woff2"

@@ -98,6 +98,12 @@
 		background: var(--brand-fg);
 		transform: translateX(16px);
 	}
+	/* Under reduced motion the thumb jumps; only its colour changes smoothly. */
+	@media (prefers-reduced-motion: reduce) {
+		input::before {
+			transition: background-color var(--dur-fast) var(--ease);
+		}
+	}
 	input:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;

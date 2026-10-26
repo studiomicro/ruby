@@ -4,7 +4,7 @@
 	canonicalised. Plain forms: works without JavaScript.
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';
 	import TextField from '#lib/ui/kit/TextField.svelte';

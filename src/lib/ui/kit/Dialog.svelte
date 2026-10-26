@@ -90,13 +90,13 @@
 		background: var(--surface);
 		box-shadow: var(--shadow-2);
 		color: var(--fg);
+		/* Closed: faded and slightly smaller; open: in place. The change between them is the motion below. */
+		opacity: 0;
+		transform: scale(0.96);
+	}
+	.dialog[open] {
 		opacity: 1;
 		transform: none;
-		transition:
-			opacity var(--dur) var(--ease),
-			transform var(--dur) var(--ease),
-			overlay var(--dur) allow-discrete,
-			display var(--dur) allow-discrete;
 	}
 	.sm {
 		max-width: 400px;
@@ -113,9 +113,33 @@
 			transform: scale(0.96);
 		}
 	}
-	@media (prefers-reduced-motion: reduce) {
+	/*
+	 * RB-20 Part B motion: on desktop the dialog fades and scales from 0.96 (`--dur`); below 768 px it rises from the
+	 * bottom (`--dur-slow`), a sheet from the bottom edge. Closing mirrors opening (`allow-discrete` keeps it on screen
+	 * until the fade ends). Under reduced motion it only fades, in `--dur-fast`.
+	 */
+	@media (prefers-reduced-motion: no-preference) {
 		.dialog {
-			transition: none;
+			transition:
+				opacity var(--dur) var(--ease-out),
+				transform var(--dur) var(--ease-out),
+				overlay var(--dur) allow-discrete,
+				display var(--dur) allow-discrete;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.dialog,
+		.dialog[open] {
+			transform: none;
+			transition:
+				opacity var(--dur-fast) var(--ease),
+				overlay var(--dur-fast) allow-discrete,
+				display var(--dur-fast) allow-discrete;
+		}
+		@starting-style {
+			.dialog[open] {
+				transform: none;
+			}
 		}
 	}
 	/* Kumo's backdrop: the recessed surface at 80 %, not a dark scrim. */
@@ -190,9 +214,28 @@
 			padding: 16px max(16px, var(--sai-right)) calc(16px + var(--sai-bottom))
 				max(16px, var(--sai-left));
 		}
+	}
+	@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+		.dialog {
+			transform: translateY(16px);
+			transition:
+				opacity var(--dur-slow) var(--ease-out),
+				transform var(--dur-slow) var(--ease-out),
+				overlay var(--dur-slow) allow-discrete,
+				display var(--dur-slow) allow-discrete;
+		}
+		.sheet {
+			transform: translateY(100%);
+		}
+		.dialog[open] {
+			transform: none;
+		}
 		@starting-style {
+			.dialog[open] {
+				transform: translateY(16px);
+			}
 			.sheet[open] {
-				transform: translateY(24px);
+				transform: translateY(100%);
 			}
 		}
 	}

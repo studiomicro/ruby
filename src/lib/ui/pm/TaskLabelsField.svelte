@@ -3,7 +3,7 @@
 	that replaces the set (`?/labelsSet`, at most `max`). Works without JavaScript; with it, saves in place.
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import type { LabelColor } from '#lib/shared/enums';
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';

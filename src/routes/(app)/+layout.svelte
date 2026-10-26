@@ -5,9 +5,14 @@
 	import Avatar from '#lib/ui/kit/Avatar.svelte';
 	import Icon from '#lib/ui/kit/Icon.svelte';
 	import Toaster from '#lib/ui/kit/Toaster.svelte';
+	import InstallEntry from '#lib/ui/pwa/InstallEntry.svelte';
+	import InstallSteps from '#lib/ui/pwa/InstallSteps.svelte';
+	import OfflineBanner from '#lib/ui/pwa/OfflineBanner.svelte';
+	import RefreshAction from '#lib/ui/pwa/RefreshAction.svelte';
+	import { signalSignedOut } from '#lib/ui/pwa/register.svelte';
 	import {
 		FOOTER_ITEMS,
-		moreItems,
+		moreSheetEntries,
 		NAV_SECTIONS,
 		NOTIFICATIONS,
 		SEARCH,
@@ -15,6 +20,7 @@
 		visibleTo
 	} from '#lib/ui/shell/nav';
 	import NewDot from '#lib/ui/shell/NewDot.svelte';
+	import { parentHref } from '#lib/ui/shell/route-parent';
 	import UpdateBanner from '#lib/ui/shell/UpdateBanner.svelte';
 
 	let { data, children } = $props();
@@ -24,7 +30,10 @@
 		NAV_SECTIONS.map((section) => ({ ...section, items: section.items.filter(visibleTo(isAdmin)) }))
 	);
 	const footerItems = $derived(FOOTER_ITEMS.filter(visibleTo(isAdmin)));
-	const sheetItems = $derived(moreItems(isAdmin));
+	const sheetEntries = $derived(moreSheetEntries(isAdmin));
+	const sheetItems = $derived(
+		sheetEntries.flatMap((entry) => (entry.kind === 'link' ? [entry.item] : []))
+	);
 
 	const unreadLabel = $derived(data.unread >= 100 ? '99+' : String(data.unread));
 	/** RB-06: leave requests this user may decide, shown on the Time off entry. */
@@ -51,9 +60,22 @@
 	onMount(() => {
 		moreOpen = moreEl?.open ?? false;
 	});
+	/**
+	 * RB-20: in-app pages behind this one in the session history (never `document.referrer`). The standalone back control
+	 * goes back through history while there is one, else to the page's parent route (route-parent.ts).
+	 */
+	let depth = 0;
 	afterNavigate((navigation) => {
 		if (navigation.type !== 'enter') closeMore();
+		if (navigation.type === 'popstate') depth = Math.max(0, depth + (navigation.delta ?? -1));
+		else if (navigation.type !== 'enter') depth += 1;
 	});
+	const backHref = $derived(parentHref(page.route.id, page.params));
+	function back(event: MouseEvent) {
+		if (depth === 0) return;
+		event.preventDefault();
+		history.back();
+	}
 </script>
 
 <svelte:window
@@ -144,7 +166,7 @@
 					<span class="email">{data.user.email}</span>
 				</span>
 			</a>
-			<form method="POST" action="/logout">
+			<form method="POST" action="/logout" onsubmit={signalSignedOut}>
 				<button type="submit" class="signout" aria-label="Sign out" title="Sign out">
 					<Icon name="logout" />
 				</button>
@@ -154,7 +176,15 @@
 
 	<!-- < 768 px: a sticky top bar and a fixed bottom tab bar instead. -->
 	<header class="topbar">
-		<a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Ruby</a>
+		<div class="top-start">
+			{#if backHref}
+				<!-- RB-20: shown in the installed app only (app.css hides it in a browser tab, which has its own back). -->
+				<a class="back-link" href={backHref} onclick={back} aria-label="Back"
+					><Icon name="back" size={20} /></a
+				>
+			{/if}
+			<a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Ruby</a>
+		</div>
 		<div class="top-actions">
 			<a href="/search" class="icon-link" aria-label="Search"><Icon name="search" size={20} /></a>
 			<a href="/notifications" class="icon-link" aria-label="Notifications, {data.unread} unread">
@@ -168,7 +198,11 @@
 		{@render children()}
 	</main>
 
-	<UpdateBanner />
+	<div class="banners">
+		<UpdateBanner />
+		<OfflineBanner />
+	</div>
+	<InstallSteps />
 
 	<nav class="tabbar" aria-label="Main">
 		{#each TAB_ITEMS as item (item.href)}
@@ -192,27 +226,35 @@
 			</summary>
 			<div class="sheet" role="group" aria-label="More">
 				<ul>
-					{#each sheetItems as item (item.href)}
-						<li>
-							<a
-								href={item.href}
-								class="sheet-link"
-								aria-current={isCurrent(item.href) ? 'page' : undefined}
-							>
-								<Icon name={item.icon} />
-								<span class="label">{item.label}</span>
-								{#if item.href === '/notifications' && data.unread > 0}
-									<span class="count">{unreadLabel}</span>
-								{:else if item.href === '/time-off' && data.pendingApprovals > 0}
-									<span class="count" aria-label="{approvalsLabel} to decide">{approvalsLabel}</span
-									>
-								{/if}
-								{#if item.href === '/releases'}<NewDot />{/if}
-							</a>
-						</li>
+					{#each sheetEntries as entry (entry.kind === 'link' ? entry.item.href : entry.action.id)}
+						{#if entry.kind === 'action'}
+							{#if entry.action.id === 'install'}<InstallEntry
+									variant="sheet"
+								/>{:else}<RefreshAction variant="sheet" />{/if}
+						{:else}
+							{@const item = entry.item}
+							<li>
+								<a
+									href={item.href}
+									class="sheet-link"
+									aria-current={isCurrent(item.href) ? 'page' : undefined}
+								>
+									<Icon name={item.icon} />
+									<span class="label">{item.label}</span>
+									{#if item.href === '/notifications' && data.unread > 0}
+										<span class="count">{unreadLabel}</span>
+									{:else if item.href === '/time-off' && data.pendingApprovals > 0}
+										<span class="count" aria-label="{approvalsLabel} to decide"
+											>{approvalsLabel}</span
+										>
+									{/if}
+									{#if item.href === '/releases'}<NewDot />{/if}
+								</a>
+							</li>
+						{/if}
 					{/each}
 					<li>
-						<form method="POST" action="/logout">
+						<form method="POST" action="/logout" onsubmit={signalSignedOut}>
 							<button type="submit" class="sheet-link"><Icon name="logout" />Sign out</button>
 						</form>
 					</li>
@@ -313,6 +355,50 @@
 	.top-actions {
 		display: flex;
 		gap: 2px;
+	}
+	.top-start {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		min-width: 0;
+	}
+	/* RB-20: the back control exists for the installed app only, where there is no browser back button. */
+	.back-link {
+		display: none;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		margin-left: -12px;
+		border-radius: var(--radius-m);
+		color: var(--fg);
+	}
+	.back-link:hover {
+		background: var(--surface-2);
+	}
+	@media (display-mode: standalone) {
+		.back-link {
+			display: grid;
+		}
+	}
+	:global(html[data-display='standalone']) .back-link {
+		display: grid;
+	}
+	/*
+	 * The update banner and the offline notice, stacked so they never overlap each other, above the tab bar and inside
+	 * the safe areas. Below the tab bar's stacking context (30), so the More sheet opened from it covers them.
+	 */
+	.banners {
+		position: fixed;
+		z-index: 25;
+		left: max(8px, var(--sai-left));
+		right: max(8px, var(--sai-right));
+		bottom: calc(var(--tabbar-h) + var(--sai-bottom) + 8px);
+		display: grid;
+		gap: 8px;
+		pointer-events: none;
+	}
+	.banners > :global(*) {
+		pointer-events: auto;
 	}
 	.icon-link {
 		position: relative;
@@ -440,6 +526,8 @@
 		border-radius: var(--radius-xl);
 		background: var(--control);
 		box-shadow: var(--shadow-2);
+		/* RB-20: scrolling the sheet never scrolls the page behind it. */
+		overscroll-behavior: contain;
 	}
 	.sheet-link {
 		display: flex;
@@ -487,6 +575,48 @@
 		backdrop-filter: blur(1px);
 	}
 
+	/*
+	 * RB-20 Part B motion. The More sheet enters in pure CSS (it is a <details>, so it opens without JavaScript too):
+	 * up 16 px and in, `--dur-slow`; the backdrop fades. Under reduced motion only the fade remains. The bars keep their
+	 * own view-transition names, so a page cross-fade (root layout) changes only the content. A pressed tab dips a little.
+	 */
+	.more[open] .sheet,
+	.backdrop {
+		transition: opacity var(--dur-fast) var(--ease);
+	}
+	@starting-style {
+		.more[open] .sheet,
+		.backdrop {
+			opacity: 0;
+		}
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.topbar {
+			view-transition-name: topbar;
+		}
+		.tabbar {
+			view-transition-name: tabbar;
+		}
+		.more[open] .sheet {
+			transition:
+				opacity var(--dur-slow) var(--ease-out),
+				transform var(--dur-slow) var(--ease-out);
+		}
+		@starting-style {
+			.more[open] .sheet {
+				transform: translateY(16px);
+			}
+		}
+		.tab {
+			transition:
+				color var(--dur-fast) var(--ease),
+				transform var(--dur-fast) var(--ease);
+		}
+		.tab:active {
+			transform: scale(0.97);
+		}
+	}
+
 	/* ── Tablet and desktop (≥ 768 px): left sidebar, no top or tab bar ───────────────────────────── */
 	@media (min-width: 768px) {
 		.shell {
@@ -497,6 +627,12 @@
 		.tabbar,
 		.backdrop {
 			display: none;
+		}
+		.banners {
+			left: auto;
+			right: max(16px, var(--sai-right));
+			bottom: calc(16px + var(--sai-bottom));
+			width: min(420px, calc(100vw - 32px));
 		}
 		.sidebar {
 			position: sticky;

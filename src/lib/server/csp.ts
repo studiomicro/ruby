@@ -18,7 +18,10 @@ export const CSP_DIRECTIVES: Directives = {
 	'img-src': ['self'],
 	'font-src': ['self'],
 	'connect-src': ['self'],
+	// RB-20: the service worker (/service-worker.js) and the web app manifest come from this origin only. The manifest
+	// would fall back to default-src anyway; stated so a change to default-src never moves it.
 	'worker-src': ['self'],
+	'manifest-src': ['self'],
 	'object-src': ['none'],
 	'base-uri': ['none'],
 	'frame-ancestors': ['none'],

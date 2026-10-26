@@ -4,7 +4,7 @@
 	`?/reminderRemove`; works without JavaScript. Success is shown only after the server confirmed it.
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';
 	import Card from '#lib/ui/kit/Card.svelte';
