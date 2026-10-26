@@ -20,12 +20,15 @@
 	// PLACEHOLDERS here; the real values come from RUBY_ACCESS_TEAM_DOMAIN and RUBY_ACCESS_AUD. While either is empty,
 	// every request to the deployed host is answered 503 (fail closed).
 	"vars": {
-		"APP_VERSION": "0.3.0",
+		"APP_VERSION": "0.4.0",
 		"ACCESS_TEAM_DOMAIN": "team.example.invalid",
 		"ACCESS_AUD": "0000000000000000000000000000000000000000000000000000000000000000",
 		"TEAM_TIME_ZONE": "Asia/Jakarta",
 		// Secure by default: Access is required. A deployment may switch it off with RUBY_ACCESS_DISABLED=1 ("1" exactly).
-		"ACCESS_DISABLED": ""
+		"ACCESS_DISABLED": "",
+		// RB-09: RUBY_REMINDER_EMAIL_FROM (optional), rendered at deploy as in workers/jobs/wrangler.jsonc. Empty: the
+		// e-mail reminder switch on /account is hidden and reminders arrive in-app only.
+		"REMINDER_EMAIL_FROM": ""
 	},
 	"d1_databases": [
 		{

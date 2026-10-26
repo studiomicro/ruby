@@ -14,14 +14,20 @@ import {
 	COMPENSATION_CURRENCIES,
 	EMPLOYEE_STATUSES,
 	EMPLOYMENT_TYPES,
-	LABEL_COLORS,
-	MILESTONE_STATUSES,
+	EVENT_VISIBILITIES,
 	HALF_DAY_PARTS,
+	LABEL_COLORS,
 	LEAVE_KINDS,
 	LEAVE_LEDGER_KINDS,
 	LEAVE_STATUSES,
+	MILESTONE_STATUSES,
 	NOTIFICATION_KINDS,
+	NOTIFICATION_TARGET_KINDS,
 	PROJECT_STATUSES,
+	REC_FREQS,
+	REMINDER_MODES,
+	REMINDER_OUTCOMES,
+	REMINDER_TARGET_KINDS,
 	TARGET_KINDS,
 	TASK_PRIORITIES,
 	TASK_STATUSES,
@@ -194,7 +200,11 @@ export const tasks = sqliteTable(
 		index('tasks_assignee_idx').on(t.assigneeId, t.status),
 		index('tasks_milestone_idx')
 			.on(t.milestoneId)
-			.where(sql`${t.milestoneId} is not null`)
+			.where(sql`${t.milestoneId} is not null`),
+		/** RB-09: the calendar's range read of due dates. */
+		index('tasks_due_idx')
+			.on(t.dueOn)
+			.where(sql`${t.deletedAt} is null and ${t.dueOn} is not null`)
 	]
 );
 
@@ -426,7 +436,11 @@ export const comments = sqliteTable(
 	]
 );
 
-/** In-app notifications. Never sent to oneself. */
+/**
+ * In-app notifications. People-triggered kinds (mention, assigned, comment) are never sent to oneself; a `reminder`
+ * (RB-09) is from oneself (`actor_id = user_id`) and carries the reminder, the occurrence it was for and a plain-text
+ * `summary` snapshotted when it fired. Migration 0011 rebuilt the table for the new columns and CHECKs.
+ */
 export const notifications = sqliteTable(
 	'notifications',
 	{
@@ -438,16 +452,27 @@ export const notifications = sqliteTable(
 		actorId: text('actor_id')
 			.notNull()
 			.references(() => users.id),
-		targetKind: text('target_kind', { enum: TARGET_KINDS }).notNull(),
+		targetKind: text('target_kind', { enum: NOTIFICATION_TARGET_KINDS }).notNull(),
 		targetId: text('target_id').notNull(),
 		commentId: text('comment_id').references(() => comments.id),
+		/** Plain text, at most 140 characters; reminders only. */
+		summary: text('summary'),
+		reminderId: text('reminder_id').references((): AnySQLiteColumn => reminders.id),
+		/** The occurrence (UTC ms) a reminder fired for. */
+		occurrenceAt: integer('occurrence_at'),
 		createdAt: integer('created_at').notNull(),
 		readAt: integer('read_at')
 	},
 	(t) => [
 		check('notifications_kind_check', oneOf(t.kind, NOTIFICATION_KINDS)),
-		check('notifications_target_kind_check', oneOf(t.targetKind, TARGET_KINDS)),
-		index('notifications_user_idx').on(t.userId, t.readAt, t.createdAt)
+		check('notifications_target_kind_check', oneOf(t.targetKind, NOTIFICATION_TARGET_KINDS)),
+		// Only a reminder notification names a reminder. Its `reminder_id` is cleared when the reminder is purged
+		// (90 days after it closed); the notification itself stays.
+		check('notifications_reminder_check', sql`${t.kind} = 'reminder' or ${t.reminderId} is null`),
+		index('notifications_user_idx').on(t.userId, t.readAt, t.createdAt),
+		uniqueIndex('notifications_reminder_uq')
+			.on(t.reminderId, t.occurrenceAt)
+			.where(sql`${t.reminderId} is not null`)
 	]
 );
 
@@ -767,4 +792,201 @@ export const leaveLedger = sqliteTable(
 			.where(sql`${t.kind} = 'reversal'`),
 		index('leave_ledger_balance_idx').on(t.employeeId, t.typeId, t.period)
 	]
+);
+
+// ── Calendar and reminders (RB-09; docs/features/rb-09-calendar-reminders/PRD.md) ───────────────────────────────
+
+/**
+ * A team event (every active user sees it) or a private one (creator and attendees only). All-day events hold
+ * inclusive team dates (`start_on`, `end_on`), timed ones UTC ms (`start_at`, `end_at` exclusive). A series repeats
+ * daily, weekly or monthly until `rec_until_on`. `first_on`/`last_on` are the team dates the event or its whole series
+ * touches, written by the app with every save, so a window read is one indexed range predicate.
+ */
+export const events = sqliteTable(
+	'events',
+	{
+		id: text('id').primaryKey(),
+		projectId: text('project_id').references(() => projects.id),
+		title: text('title').notNull(),
+		/** Markdown. */
+		description: text('description').notNull().default(''),
+		location: text('location').notNull().default(''),
+		allDay: integer('all_day', { mode: 'boolean' }).notNull().default(false),
+		startOn: text('start_on'),
+		endOn: text('end_on'),
+		startAt: integer('start_at'),
+		endAt: integer('end_at'),
+		firstOn: text('first_on').notNull(),
+		lastOn: text('last_on').notNull(),
+		visibility: text('visibility', { enum: EVENT_VISIBILITIES }).notNull().default('team'),
+		recFreq: text('rec_freq', { enum: REC_FREQS }),
+		recInterval: integer('rec_interval').notNull().default(1),
+		recUntilOn: text('rec_until_on'),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => users.id),
+		createdAt: integer('created_at').notNull(),
+		updatedAt: integer('updated_at').notNull(),
+		deletedAt: integer('deleted_at')
+	},
+	(t) => [
+		check('events_all_day_check', sql`${t.allDay} in (0, 1)`),
+		check('events_visibility_check', oneOf(t.visibility, EVENT_VISIBILITIES)),
+		check('events_rec_freq_check', sql`${t.recFreq} is null or ${oneOf(t.recFreq, REC_FREQS)}`),
+		check('events_rec_interval_check', sql`${t.recInterval} between 1 and 30`),
+		check('events_rec_until_check', sql`(${t.recFreq} is null) = (${t.recUntilOn} is null)`),
+		check(
+			'events_shape_check',
+			sql`(${t.allDay} = 1 and ${t.startOn} is not null and ${t.endOn} is not null and ${t.startAt} is null and ${t.endAt} is null) or (${t.allDay} = 0 and ${t.startAt} is not null and ${t.endAt} is not null and ${t.startOn} is null and ${t.endOn} is null)`
+		),
+		index('events_range_idx')
+			.on(t.firstOn, t.lastOn)
+			.where(sql`${t.deletedAt} is null`),
+		index('events_project_idx')
+			.on(t.projectId)
+			.where(sql`${t.deletedAt} is null`),
+		index('events_creator_idx').on(t.createdBy)
+	]
+);
+
+/** Who attends an event (the creator is implicit and never stored). No RSVP. */
+export const eventAttendees = sqliteTable(
+	'event_attendees',
+	{
+		eventId: text('event_id')
+			.notNull()
+			.references(() => events.id),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		createdAt: integer('created_at').notNull()
+	},
+	(t) => [
+		primaryKey({ columns: [t.eventId, t.userId] }),
+		index('event_attendees_user_idx').on(t.userId)
+	]
+);
+
+/** One deleted occurrence of a series, by its start date. */
+export const eventExceptions = sqliteTable(
+	'event_exceptions',
+	{
+		eventId: text('event_id')
+			.notNull()
+			.references(() => events.id),
+		onDate: text('on_date').notNull(),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => users.id),
+		createdAt: integer('created_at').notNull()
+	},
+	(t) => [primaryKey({ columns: [t.eventId, t.onDate] })]
+);
+
+/**
+ * A private nudge of one user on a task, an event or a note of their own. `fire_at` is the next fire time, a cache of
+ * the live target that the jobs Worker re-derives before it sends. The claim columns make dispatch idempotent;
+ * `done_at`/`outcome` close it. `last_fired_at` is the start of the occurrence last handled (recurring events);
+ * `email_sent_at` the fire time last e-mailed.
+ */
+export const reminders = sqliteTable(
+	'reminders',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		targetKind: text('target_kind', { enum: REMINDER_TARGET_KINDS }).notNull(),
+		targetId: text('target_id'),
+		mode: text('mode', { enum: REMINDER_MODES }).notNull(),
+		offsetMin: integer('offset_min'),
+		remindAt: integer('remind_at'),
+		title: text('title').notNull().default(''),
+		fireAt: integer('fire_at').notNull(),
+		lastFiredAt: integer('last_fired_at'),
+		claimToken: text('claim_token'),
+		claimUntil: integer('claim_until'),
+		attempts: integer('attempts').notNull().default(0),
+		retryAt: integer('retry_at'),
+		lastError: text('last_error'),
+		doneAt: integer('done_at'),
+		outcome: text('outcome', { enum: REMINDER_OUTCOMES }),
+		emailSentAt: integer('email_sent_at'),
+		createdAt: integer('created_at').notNull(),
+		updatedAt: integer('updated_at').notNull(),
+		deletedAt: integer('deleted_at')
+	},
+	(t) => [
+		check('reminders_target_kind_check', oneOf(t.targetKind, REMINDER_TARGET_KINDS)),
+		check('reminders_mode_check', oneOf(t.mode, REMINDER_MODES)),
+		check('reminders_target_check', sql`(${t.targetKind} = 'personal') = (${t.targetId} is null)`),
+		check(
+			'reminders_shape_check',
+			sql`(${t.mode} = 'relative' and ${t.offsetMin} between 0 and 10080 and ${t.remindAt} is null) or (${t.mode} = 'absolute' and ${t.remindAt} is not null and ${t.offsetMin} is null)`
+		),
+		check(
+			'reminders_outcome_check',
+			sql`${t.outcome} is null or ${oneOf(t.outcome, REMINDER_OUTCOMES)}`
+		),
+		check('reminders_done_check', sql`(${t.doneAt} is null) = (${t.outcome} is null)`),
+		index('reminders_due_idx')
+			.on(t.fireAt)
+			.where(sql`${t.doneAt} is null and ${t.deletedAt} is null`),
+		index('reminders_user_idx')
+			.on(t.userId, t.doneAt, t.fireAt)
+			.where(sql`${t.deletedAt} is null`),
+		/** The 24-hour create cap counts every row of a user, deleted ones included. */
+		index('reminders_user_created_idx').on(t.userId, t.createdAt),
+		index('reminders_target_idx')
+			.on(t.targetKind, t.targetId)
+			.where(sql`${t.deletedAt} is null`),
+		uniqueIndex('reminders_dedupe_uq')
+			.on(
+				t.userId,
+				t.targetKind,
+				sql`ifnull(${t.targetId}, '')`,
+				t.mode,
+				sql`ifnull(${t.offsetMin}, -1)`,
+				sql`ifnull(${t.remindAt}, -1)`,
+				t.title
+			)
+			.where(sql`${t.doneAt} is null and ${t.deletedAt} is null`)
+	]
+);
+
+/**
+ * iCal feed tokens (PRD section 5). The feed is off (owner answer O4) and not built; the table exists so switching
+ * it on later needs no migration. Only the SHA-256 of a token would be stored.
+ */
+export const calendarFeedTokens = sqliteTable(
+	'calendar_feed_tokens',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id),
+		tokenHash: text('token_hash').notNull(),
+		createdAt: integer('created_at').notNull(),
+		lastUsedAt: integer('last_used_at'),
+		revokedAt: integer('revoked_at')
+	},
+	(t) => [
+		uniqueIndex('calendar_feed_tokens_hash_uq').on(t.tokenHash),
+		uniqueIndex('calendar_feed_tokens_active_uq')
+			.on(t.userId)
+			.where(sql`${t.revokedAt} is null`)
+	]
+);
+
+/** Per-user calendar settings: e-mail reminders (owner answer O5) are opt-in. */
+export const userCalendarPrefs = sqliteTable(
+	'user_calendar_prefs',
+	{
+		userId: text('user_id')
+			.primaryKey()
+			.references(() => users.id),
+		emailReminders: integer('email_reminders', { mode: 'boolean' }).notNull().default(false),
+		updatedAt: integer('updated_at').notNull()
+	},
+	(t) => [check('user_calendar_prefs_email_check', sql`${t.emailReminders} in (0, 1)`)]
 );

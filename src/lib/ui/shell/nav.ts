@@ -27,10 +27,12 @@ const PROJECTS: NavItem = { href: '/projects', label: 'Projects', icon: 'project
 const KB: NavItem = { href: '/kb', label: 'Knowledge base', short: 'KB', icon: 'book' };
 const PEOPLE: NavItem = { href: '/people', label: 'People', icon: 'people' };
 const TIME_OFF: NavItem = { href: '/time-off', label: 'Time off', icon: 'calendar' };
+/** RB-09; `/reminders` is reached from the calendar page and from Account, not from the nav. */
+const CALENDAR: NavItem = { href: '/calendar', label: 'Calendar', icon: 'calendar' };
 
 /** The sidebar's groups: daily work first, then the team. */
 export const NAV_SECTIONS: NavSection[] = [
-	{ items: [HOME, MY_TASKS, PROJECTS, KB] },
+	{ items: [HOME, MY_TASKS, PROJECTS, CALENDAR, KB] },
 	{ label: 'Team', items: [PEOPLE, TIME_OFF] }
 ];
 

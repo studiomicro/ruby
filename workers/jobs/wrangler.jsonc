@@ -1,0 +1,37 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	// RB-09 (owner answer O1): the jobs Worker. A Cron Trigger once a minute delivers due reminders; it has no HTTP
+	// surface (fetch answers 404), no route, no workers.dev address, no assets and no R2.
+	"name": "ruby-jobs",
+	"main": "src/index.ts",
+	// Same date and flags as the app Worker (../../wrangler.jsonc).
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_als"],
+	// PLACEHOLDER: CLOUDFLARE_ACCOUNT_ID (environment or .deploy.env); `npm run deploy` renders
+	// wrangler.deploy.generated.jsonc next to this file.
+	"account_id": "00000000000000000000000000000000",
+	"workers_dev": false,
+	"triggers": { "crons": ["* * * * *"] },
+	"observability": { "enabled": true, "logs": { "invocation_logs": false } },
+	"vars": {
+		// Kept equal to the app's APP_VERSION (scripts/deploy.ts › deployProblems checks it).
+		"APP_VERSION": "0.4.0",
+		"TEAM_TIME_ZONE": "Asia/Jakarta",
+		// PLACEHOLDER host (RUBY_APP_HOST), for the links in reminder e-mail.
+		"APP_HOST": "ruby.example.invalid",
+		// RUBY_REMINDER_EMAIL_FROM (optional), rendered at deploy: the verified Cloudflare Email Sending sender
+		// (docs/RUNBOOK.md › E-mail reminders). Empty: no e-mail is sent and in-app reminders still deliver.
+		"REMINDER_EMAIL_FROM": ""
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ruby",
+			// PLACEHOLDER: RUBY_D1_DATABASE_ID, the same database as the app's (scripts/deploy.ts › deployProblems
+			// checks it). No migrations_dir: migrations belong to the app config.
+			"database_id": "00000000-0000-4000-8000-000000000000"
+		}
+	],
+	// Cloudflare Email Sending. Used only while REMINDER_EMAIL_FROM is set.
+	"send_email": [{ "name": "EMAIL" }]
+}

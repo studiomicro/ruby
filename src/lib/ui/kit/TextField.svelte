@@ -25,12 +25,13 @@
 		maxlength,
 		minlength,
 		autofocus = false,
-		hideLabel = false
+		hideLabel = false,
+		step
 	}: {
 		label: string;
 		name: string;
 		value?: string;
-		type?: 'text' | 'email' | 'password' | 'search' | 'url' | 'date' | 'number';
+		type?: 'text' | 'email' | 'password' | 'search' | 'url' | 'date' | 'time' | 'number';
 		id?: string;
 		error?: string | null;
 		hint?: string;
@@ -45,6 +46,8 @@
 		autofocus?: boolean;
 		/** Keeps the label for screen readers only (a search box with a visible placeholder). */
 		hideLabel?: boolean;
+		/** The input's `step` (a `time` field in 5-minute steps: 300). */
+		step?: number;
 	} = $props();
 
 	const errorId = $derived(`${id}-error`);
@@ -71,6 +74,7 @@
 		{maxlength}
 		{minlength}
 		{autofocus}
+		{step}
 		aria-invalid={error ? true : undefined}
 		aria-describedby={describedBy}
 	/>

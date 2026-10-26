@@ -29,10 +29,10 @@ test.describe('release notes', () => {
 		await page.goto('/releases');
 		await expect(page.getByRole('heading', { level: 1, name: "What's new" })).toBeVisible();
 		const headings = page.locator('article.release h2');
-		await expect(headings.first()).toContainText('Version 0.2.0');
-		await expect(headings.nth(1)).toContainText('Version 0.1.0');
-		await expect(page.locator('#v0-2-0')).toBeVisible();
-		await expect(page.locator('.markdown').first()).toContainText('Update banner');
+		await expect(headings.first()).toContainText('Version 0.4.0');
+		await expect(headings.nth(1)).toContainText('Version 0.3.0');
+		await expect(page.locator('#v0-4-0')).toBeVisible();
+		await expect(page.locator('.markdown').first()).toContainText('Reminders');
 		await expectNoHorizontalOverflow(page);
 	});
 

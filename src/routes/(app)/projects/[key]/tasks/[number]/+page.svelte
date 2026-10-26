@@ -18,6 +18,7 @@
 	import LabelChip from '#lib/ui/pm/LabelChip.svelte';
 	import TaskChecklist from '#lib/ui/pm/TaskChecklist.svelte';
 	import TaskLabelsField from '#lib/ui/pm/TaskLabelsField.svelte';
+	import ReminderPanel from '#lib/ui/calendar/ReminderPanel.svelte';
 
 	let { data, form } = $props();
 
@@ -303,6 +304,15 @@
 				<dd><LocalTime at={data.task.completedAt} withTime /></dd>
 			{/if}
 		</dl>
+
+		<!-- RB-09:reminders -->
+		<ReminderPanel
+			panel={data.reminders}
+			result={form && 'reminder' in form ? form.reminder : null}
+			zone={data.clock.zone}
+			zoneLabel={data.clock.zoneLabel}
+			today={data.clock.today}
+		/>
 
 		{#if data.canDelete && !archived}
 			<form

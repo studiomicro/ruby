@@ -4,6 +4,7 @@
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';
 	import PageHeader from '#lib/ui/kit/PageHeader.svelte';
+	import Switch from '#lib/ui/kit/Switch.svelte';
 	import TextField from '#lib/ui/kit/TextField.svelte';
 
 	let { data, form } = $props();
@@ -101,6 +102,26 @@
 				>
 			</div>
 		</form>
+	</section>
+
+	<section class="panel" aria-labelledby="reminders-heading">
+		<h2 id="reminders-heading">Reminders</h2>
+		<p class="help">
+			Your reminders arrive in Notifications. Manage them on <a href="/reminders">My reminders</a>.
+		</p>
+		{#if data.emailReminders}
+			<form method="POST" action="?/emailReminders" class="form" use:enhance>
+				<Banner tone="success" message={form?.emailSaved ? 'Saved.' : null} />
+				<Switch
+					label="Also send each reminder by e-mail"
+					name="on"
+					value="1"
+					checked={data.emailReminders.on}
+					description="To {data.account.email}."
+				/>
+				<div><Button type="submit">Save</Button></div>
+			</form>
+		{/if}
 	</section>
 </div>
 

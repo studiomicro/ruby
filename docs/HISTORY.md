@@ -5,6 +5,8 @@ Open work: `docs/TASKS.md`. What is verified and how: `docs/ACCEPTANCE.md`.
 
 ## Completed work
 
+- **RB-09 Calendar and reminders (2026-10-26, v0.4.0)** — `/calendar` month/week/agenda (agenda default on phones) aggregating task due dates, milestones, approved time off (names and day parts only) and holidays, plus first-class events (team or private, attendees, simple recurrence with limits); reminders on tasks, events and personal, delivered in-app by the new `ruby-jobs` Worker (1-minute Cron, idempotent claiming, backoff and dead-letter, 24 h late window) and by e-mail once `REMINDER_EMAIL_FROM` is set; per-user caps (500 live events, 100 events/day, 300 reminders/day). Migration 0011 (rebuilds `notifications`). QA PASS; red team PASS; 5 Low fixed in cycle 2. NOT verified: the real Cloudflare cron and Email Sending before this deploy.
+
 - **RB-06 Time off (2026-10-26, v0.3.0)** — leave types, requests counted in working days (weekends and HR-entered holidays skipped, half days), UU-default annual leave (12 days, prorated in year 1, no carry-over), approval by manager else HR/admin, audited self-approval only while no manager, other active HR user or other active admin exists, append-only leave ledger with read-only balances on GET, team calendar (names and day parts only), HR settings and holidays, terminate/delete cancels pending requests. Migration 0003_time_off (snapshot file 0011_snapshot.json because drizzle-kit chains by file name). QA PASS (2 Medium fixed); red team PASS (6 Low fixed), re-check PASS, N1 fixed in cycle 3. NOT verified: production holidays (owner enters them).
 
 - **RB-10 Kumo design (2026-10-26)** — owner request "implement design from kumo-ui.com": Kumo (MIT, cloudflare/kumo @ 947065a) token values ported into `src/app.css` with attribution in `THIRD_PARTY_NOTICES.md`, darkened where Kumo fails WCAG AA; Svelte kit re-created (no React): restyled Button/Badge/Banner/EmptyState/PageHeader/FieldError/TextField/TextArea/Select, new Card, Table, Tabs, Dialog, DropdownMenu, Toaster, Checkbox, Switch; shell and auth restyled; Select keeps a choice made before hydration; `.sr-only` board overflow bug fixed; stricter overflow helper. Contrast test over token pairs. Screenshots in `docs/design/screenshots/`. NOT verified: on real iOS devices.
@@ -28,6 +30,8 @@ Open work: `docs/TASKS.md`. What is verified and how: `docs/ACCEPTANCE.md`.
 - **Project start (2026-10-26)** — owner decisions recorded in `CLAUDE.md`; multi-agent pipeline and docs ported from Montra. No feature code yet.
 
 ## Test evidence log
+
+- 2026-10-26 RB-09 (load ~2): `COMPLETED 1210 FILES 0 ERRORS 0 WARNINGS`; Prettier clean; `Test Files 82 passed (82)`, `Tests 1656 passed (1656)`; e2e `283 passed`, `46 skipped`; deploy dry-run exit 0 (jobs then app).
 
 - 2026-10-26 RB-06 squashed on main with v0.3.0 notes: `COMPLETED 1139 FILES 0 ERRORS 0 WARNINGS`; Prettier clean; `Test Files 66 passed (66)`, `Tests 1500 passed (1500)`. e2e (engineer, port 4431): `258 passed, 43 skipped`.
 

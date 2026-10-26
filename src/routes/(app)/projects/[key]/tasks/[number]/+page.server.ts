@@ -1,11 +1,13 @@
 import { error, fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { attachmentPanel } from '#lib/server/attachments/panel';
 import { listActiveUsers, mentionNames } from '#lib/server/auth/users';
+import { zoneContext } from '#lib/server/calendar/zone';
 import { commentActions } from '#lib/server/comments/actions';
 import { loadThread } from '#lib/server/comments/service';
 import { readFormBody, textField } from '#lib/server/forms';
 import { requireUser } from '#lib/server/guards';
 import { canDeleteTask } from '#lib/server/projects/permissions';
+import { reminderActions, reminderPanel } from '#lib/server/reminders/panel';
 import { projectFromParams, TASK_NOT_FOUND, taskNumberParam } from '#lib/server/projects/route';
 import { conflictFields } from '#lib/server/tasks/conflict';
 import { formatTaskRef, taskPath } from '#lib/server/tasks/format';
@@ -68,14 +70,18 @@ export const load: PageServerLoad = async (event) => {
 		taskExtras(db, project.id, [task.id])
 	]);
 	// Mention chips show the mentioned user's current name, never the label the author typed (red team L1).
-	const [names, comments, attachments] = await Promise.all([
+	const [names, comments, attachments, reminders] = await Promise.all([
 		mentionNames(db, extractMentionIds(task.description)),
 		loadThread(db, user, { kind: 'task', id: task.id }, event.url),
 		// RB-04: the task's files.
-		attachmentPanel(db, user, 'task', task.id, event.url)
+		attachmentPanel(db, user, 'task', task.id, event.url),
+		// RB-09: the viewer's own reminders on this task.
+		reminderPanel(db, user, { kind: 'task', id: task.id, dueOn: task.dueOn })
 	]);
 	return {
 		attachments,
+		reminders,
+		clock: zoneContext(),
 		names,
 		/** RB-03: the comment thread (CommentThread). */
 		comments,
@@ -175,6 +181,12 @@ export const actions: Actions = {
 	...commentActions(async (event: RequestEvent) => {
 		const { project, task } = await taskFromParams(event);
 		return { kind: 'task', id: task.id, href: taskPath(project.key, task.number) };
+	}),
+
+	/** RB-09: `reminderAdd`, `reminderRemove` on this task (the viewer's own reminders). */
+	...reminderActions(async (event: RequestEvent) => {
+		const { task } = await taskFromParams(event);
+		return { kind: 'task', id: task.id, dueOn: task.dueOn };
 	}),
 
 	/** The full edit form (title and description; any other task field posted is applied too). */

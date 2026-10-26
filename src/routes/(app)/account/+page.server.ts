@@ -1,4 +1,4 @@
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { changePassword } from '#lib/server/auth/change-password';
 import { INVALID_CREDENTIALS, TOO_MANY_ATTEMPTS } from '#lib/server/auth/messages';
 import {
@@ -11,15 +11,33 @@ import { overUserAttemptLimit } from '#lib/server/auth/throttle';
 import { updateOwnName } from '#lib/server/auth/users';
 import { readFormBody, textField } from '#lib/server/forms';
 import { requireUser } from '#lib/server/guards';
+import {
+	emailRemindersConfigured,
+	emailRemindersOn,
+	setEmailReminders
+} from '#lib/server/reminders/prefs';
 import { now } from '#lib/server/util';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = (event) => {
+export const load: PageServerLoad = async (event) => {
 	const user = requireUser(event);
-	return { account: { name: user.name, email: user.email, role: user.role } };
+	// RB-09: the e-mail reminder toggle exists only while a sender is configured.
+	const emailReminders = emailRemindersConfigured()
+		? { on: await emailRemindersOn(event.locals.db, user.id) }
+		: null;
+	return { account: { name: user.name, email: user.email, role: user.role }, emailReminders };
 };
 
 export const actions: Actions = {
+	/** RB-09: e-mail reminders on or off for oneself; 404 while no sender is configured. */
+	emailReminders: async (event) => {
+		const user = requireUser(event);
+		if (!emailRemindersConfigured()) error(404, 'Not found');
+		const form = await readFormBody(event.request);
+		await setEmailReminders(event.locals.db, user.id, textField(form, 'on') === '1', now());
+		return { emailSaved: true };
+	},
+
 	/** The display name. */
 	name: async (event) => {
 		const user = requireUser(event);

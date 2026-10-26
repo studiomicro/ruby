@@ -1,7 +1,7 @@
 {
 	"name": "ruby",
 	"private": true,
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -21,20 +21,21 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p workers/jobs/tsconfig.json",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test": "node scripts/machine-limits.ts && vitest run",
 		"test:e2e": "node scripts/machine-limits.ts && playwright test",
 		"build": "vite build",
 		"gates": "npm run check && npm run lint && npm run test && npm run build",
-		"types:cf": "rm -rf .svelte-kit/cloudflare && wrangler types --strict-vars=false src/worker-configuration.d.ts",
+		"types:cf": "rm -rf .svelte-kit/cloudflare && wrangler types --strict-vars=false src/worker-configuration.d.ts && wrangler types --strict-vars=false -c workers/jobs/wrangler.jsonc workers/jobs/worker-configuration.d.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate:local": "node scripts/migrate-local.ts",
 		"db:seed:local": "node scripts/seed-local.ts",
 		"db:reset:local": "node scripts/reset-local.ts",
 		"deploy": "node scripts/deploy.ts",
 		"readme:images": "node scripts/readme-images.ts",
+		"jobs:dev": "wrangler dev -c workers/jobs/wrangler.jsonc --test-scheduled --persist-to .wrangler/state --port 8787",
 		"prepare": "svelte-kit sync || echo ''"
 	},
 	"dependencies": {

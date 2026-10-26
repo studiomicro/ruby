@@ -3,7 +3,7 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import type { SessionUser } from '../auth/session';
 import type { Db } from '../db';
 import { batchAssert, isBatchAssertFailure } from '../db/assert';
-import { notifications, taskLabels, tasks } from '../db/schema';
+import { notifications, reminders, taskLabels, tasks } from '../db/schema';
 import { POSITION_STEP } from '../tasks/position';
 import { completedAtFor, milestoneAssignable, projectActive } from '../tasks/repo';
 import { holds, projectRefusal, type PmWrite } from './common';
@@ -104,6 +104,9 @@ export async function bulkUpdate(
 						targetKind: sql`'task'`.as('targetKind'),
 						targetId: tasks.id,
 						commentId: sql`null`.as('commentId'),
+						summary: sql`null`.as('summary'),
+						reminderId: sql`null`.as('reminderId'),
+						occurrenceAt: sql`null`.as('occurrenceAt'),
 						createdAt: sql`${at}`.as('createdAt'),
 						readAt: sql`null`.as('readAt')
 					})
@@ -138,6 +141,29 @@ export async function bulkUpdate(
 				.update(tasks)
 				.set({ ...fields, updatedAt: bump })
 				.where(selectedTasks)
+		);
+	// RB-09: a changed due date sends the selected tasks' relative reminders back to the jobs Worker to re-derive.
+	if (dueOn !== undefined)
+		items.push(
+			db
+				.update(reminders)
+				.set({
+					fireAt: at,
+					claimToken: null,
+					claimUntil: null,
+					retryAt: null,
+					attempts: 0,
+					updatedAt: at
+				})
+				.where(
+					and(
+						eq(reminders.targetKind, 'task'),
+						eq(reminders.mode, 'relative'),
+						isNull(reminders.doneAt),
+						isNull(reminders.deletedAt),
+						sql`${reminders.targetId} in (select t.id from tasks t where ${selected()})`
+					)
+				)
 		);
 	if (addLabelId)
 		items.push(
