@@ -37,7 +37,7 @@
 />
 
 <div class="grid-box" role="region" aria-label="Leave calendar" tabindex="-1">
-	<table class="grid">
+	<table class="cal-grid">
 		<thead>
 			<tr>
 				{#each WEEKDAY_NAMES as name (name)}<th scope="col" abbr={name}>{name.slice(0, 3)}</th
@@ -103,7 +103,7 @@
 		border-radius: var(--radius-l);
 		background: var(--surface);
 	}
-	.grid {
+	.cal-grid {
 		width: 100%;
 		min-width: 640px;
 		border-collapse: collapse;

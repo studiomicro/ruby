@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vitest/config';
+import { testWorkers } from './scripts/machine-limits.ts';
 
 export default defineConfig({
 	// Compiles .svelte files for server-render tests (svelte/server); there is no browser environment.
@@ -12,6 +13,9 @@ export default defineConfig({
 	test: {
 		include: ['src/**/*.test.ts', 'scripts/**/*.test.ts', 'test/**/*.test.ts'],
 		environment: 'node',
+		// Bounded locally so a shared machine does not turn timing-sensitive tests into false failures
+		// (scripts/machine-limits.ts); CI keeps Vitest's default.
+		...(process.env.CI ? {} : { maxWorkers: testWorkers() }),
 		testTimeout: 30_000,
 		// openLocalD1 (workerd start + every migration) in beforeAll can pass the 10 s default under parallel load.
 		hookTimeout: 60_000

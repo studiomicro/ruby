@@ -9,7 +9,7 @@
 	let { tree, label }: { tree: ScopeTree; label: string } = $props();
 </script>
 
-<section class="outline" aria-label={label}>
+<section class="scope-outline" aria-label={label}>
 	<PageTree nodes={tree.nodes} openIds={tree.openIds} {label} />
 	{#if tree.truncated}
 		<p class="note">
@@ -20,7 +20,7 @@
 </section>
 
 <style>
-	.outline {
+	.scope-outline {
 		padding: 10px;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-l);

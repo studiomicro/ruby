@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { defineConfig, devices } from '@playwright/test';
+import { e2eWorkers } from './scripts/machine-limits.ts';
 import { STORAGE_STATE } from './e2e/helpers';
 
 /**
@@ -32,6 +33,8 @@ export default defineConfig({
 	testDir: 'e2e',
 	outputDir: 'test-results',
 	fullyParallel: true,
+	// Bounded locally (scripts/machine-limits.ts); CI keeps Playwright's default.
+	workers: process.env.CI ? undefined : e2eWorkers(),
 	retries: 0,
 	reporter: 'list',
 	use: {
