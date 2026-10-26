@@ -1,0 +1,13 @@
+{
+	"extends": "$app/tsconfig",
+	"compilerOptions": {
+		"strict": true,
+		"allowJs": true,
+		"checkJs": true,
+		"skipLibCheck": true,
+		"noUncheckedIndexedAccess": true,
+		"forceConsistentCasingInFileNames": true,
+		"paths": { "#lib": ["./src/lib"], "#lib/*": ["./src/lib/*"] }
+	},
+	"include": ["src", "test", "scripts", "e2e", "*.ts"]
+}
