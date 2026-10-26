@@ -1,100 +1,34 @@
-### .github/workflows/ci.yml
+# CI: the gates (check, lint, test, build) on every pull request and every push to main. Read-only token, no
+# secrets. There is no deploy workflow: production changes only through `npm run deploy` (docs/RUNBOOK.md).
 name: CI
 
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  WRANGLER_SEND_METRICS: 'false'
 
 jobs:
-  changelog:
-    name: Changelog
-    runs-on: ubuntu-latest
-
-    outputs:
-      changelog: ${{ steps.changed-files.outputs.all_changed_files }}
-
+  gates:
+    name: gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-
-      - name: Get changed files
-        id: changed-files
-        uses: tj-actions/changed-files@v41.0.0
-
-  run_unitary_tests:
-    name: Run clippy and unitary tests
-    runs-on: ubuntu-latest
-
-    needs: changelog
-    if: |
-      contains(needs.changelog.outputs.changelog, 'src') ||
-      contains(needs.changelog.outputs.changelog, 'Cargo.toml') ||
-      contains(needs.changelog.outputs.changelog, 'proto')
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          fetch-depth: 0
-
-      - name: Install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: "3.x"
-
-      - name: Cargo clippy
-        uses: actions-rs/clippy@master
-
-      - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose
-
-  coverage:
-    name: Compute code coverage
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-
-      - name: Install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: llvm-tools-preview
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: "3.x"
-
-      - name: Cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Cargo generate-lockfile
-        if: hashFiles('Cargo.lock') == ''
-        uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-
-      - name: Cargo llvm-cov
-        run: cargo llvm-cov --locked --lcov --output-path lcov.info --no-default-features -- --nocapture
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run gates

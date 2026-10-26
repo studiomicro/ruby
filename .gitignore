@@ -1,32 +1,35 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.env
+node_modules
 
-# Test binaries
-*.test
+# Output
+.output
+.wrangler
+/.svelte-kit
+/build
 
-# Go coverage tool output
-*.out
+# OS
+.DS_Store
+Thumbs.db
 
-# Rust compiled files and executables
-debug/
-target/
+# Env
+.env
+.env.*
+!.env.example
 
-# Rust Cargo lock file (uncomment if creating an executable)
-# Cargo.lock
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
 
-# Rustfmt backup files
-**/*.rs.bk
+test-results
+playwright-report
+e2e/.auth
 
-# PostgreSQL init scripts
-.postgres
+# Wrangler local secrets (see .dev.vars.example)
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 
-# HTML templates for rendering
-templates/
+.claude/settings.local.json
 
-# Keys and secrets
-secrets/
+# Deployment values (docs/SELF_HOSTING.md): the real ids, never committed
+.deploy.env
+wrangler.*.generated.jsonc
