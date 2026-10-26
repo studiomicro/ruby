@@ -1,0 +1,185 @@
+/*
+ * Shared styles for the README images (`npm run readme:images`, scripts/readme-images.ts). The colour tokens are not
+ * written here: the script copies Ruby's light and dark token blocks from src/app.css into `.light` and `.dark`, so
+ * the images always use the app's own palette. Each template sets one scheme on <body> and may nest the other.
+ */
+
+@font-face {
+	font-family: 'Geist';
+	src: url('../../../static/fonts/geist/1.7.2/Geist-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+}
+
+@font-face {
+	font-family: 'Geist Mono';
+	src: url('../../../static/fonts/geist-mono/1.7.2/GeistMono-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+}
+
+* {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+html,
+body {
+	-webkit-font-smoothing: antialiased;
+}
+
+body {
+	font-family: 'Geist', ui-sans-serif, system-ui, sans-serif;
+	color: var(--fg);
+	overflow: hidden;
+}
+
+/* The canvas: a solid background so the image reads on GitHub's light and dark pages alike. */
+.canvas {
+	position: relative;
+	overflow: hidden;
+	width: var(--w);
+	height: var(--h);
+}
+
+.mono {
+	font-family: 'Geist Mono', ui-monospace, monospace;
+}
+
+/* Ruby's mark (static/favicon.svg), in --logo. */
+.mark {
+	display: inline-block;
+	flex: none;
+}
+
+/* A desktop browser window around a screenshot. */
+.browser {
+	position: absolute;
+	overflow: hidden;
+	border: 1px solid var(--border-strong);
+	border-radius: 12px;
+	background: var(--surface);
+	box-shadow:
+		0 30px 60px -20px rgb(0 0 0 / 0.35),
+		0 12px 24px -12px rgb(0 0 0 / 0.25);
+}
+
+.browser .bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 40px;
+	padding: 0 14px;
+	border-bottom: 1px solid var(--border);
+	background: var(--elevated);
+}
+
+.browser .dot {
+	width: 11px;
+	height: 11px;
+	border-radius: 50%;
+	background: var(--surface-3);
+}
+
+.browser .url {
+	flex: 1;
+	max-width: 420px;
+	height: 24px;
+	margin: 0 auto;
+	border-radius: 6px;
+	background: var(--surface-2);
+	color: var(--muted);
+	font-size: 12px;
+	line-height: 24px;
+	text-align: center;
+}
+
+.browser .screen {
+	display: block;
+	width: 100%;
+}
+
+/* An iPhone (402 × 874 CSS px screen, Dynamic Island) around a 2× phone screenshot. */
+.phone {
+	position: absolute;
+	width: calc(402px * var(--s, 0.5) + 2 * var(--bezel, 7px));
+	padding: var(--bezel, 7px);
+	border-radius: calc(55px * var(--s, 0.5) + var(--bezel, 7px));
+	background: #0b0b0c;
+	box-shadow:
+		0 0 0 1px #3a3a3e,
+		0 30px 60px -18px rgb(0 0 0 / 0.45);
+}
+
+.phone .glass {
+	position: relative;
+	overflow: hidden;
+	border-radius: calc(55px * var(--s, 0.5));
+}
+
+.phone .glass img {
+	display: block;
+	width: calc(402px * var(--s, 0.5));
+	height: calc(874px * var(--s, 0.5));
+}
+
+.phone .island {
+	position: absolute;
+	top: calc(11px * var(--s, 0.5));
+	left: 50%;
+	width: calc(124px * var(--s, 0.5));
+	height: calc(36px * var(--s, 0.5));
+	border-radius: 999px;
+	background: #000;
+	transform: translateX(-50%);
+}
+
+.phone .status {
+	position: absolute;
+	top: calc(19px * var(--s, 0.5));
+	right: calc(30px * var(--s, 0.5));
+	left: calc(44px * var(--s, 0.5));
+	display: flex;
+	justify-content: space-between;
+	color: var(--fg-strong);
+	font-size: calc(17px * var(--s, 0.5));
+	font-weight: 600;
+}
+
+.phone .status svg {
+	height: calc(13px * var(--s, 0.5));
+	fill: currentColor;
+}
+
+.phone .home {
+	position: absolute;
+	bottom: calc(8px * var(--s, 0.5));
+	left: 50%;
+	width: calc(140px * var(--s, 0.5));
+	height: calc(5px * var(--s, 0.5));
+	border-radius: 999px;
+	background: var(--fg-strong);
+	transform: translateX(-50%);
+}
+
+/* A crop of a screenshot: the image is placed by --x, --y and --iw (its width in CSS px). */
+.crop {
+	position: relative;
+	overflow: hidden;
+}
+
+.crop img {
+	position: absolute;
+	left: var(--x, 0);
+	top: var(--y, 0);
+	width: var(--iw);
+}
+
+.icon {
+	width: 20px;
+	height: 20px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.75;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}

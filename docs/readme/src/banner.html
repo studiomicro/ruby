@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Banner</title>
+		<link rel="stylesheet" href="readme.css" />
+		<style>
+			.canvas {
+				background:
+					radial-gradient(640px 420px at 18% 30%, rgb(180 35 60 / 0.28), transparent 70%),
+					radial-gradient(700px 500px at 85% 110%, rgb(21 93 252 / 0.18), transparent 70%),
+					#070708;
+			}
+			.grid {
+				position: absolute;
+				inset: 0;
+				background-image:
+					linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+					linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+				background-size: 40px 40px;
+			}
+			.copy {
+				position: absolute;
+				top: 112px;
+				left: 72px;
+				width: 470px;
+				color: #fafafa;
+			}
+			.brand {
+				display: flex;
+				align-items: center;
+				gap: 18px;
+			}
+			.brand h1 {
+				font-size: 84px;
+				font-weight: 650;
+				letter-spacing: -0.04em;
+				line-height: 1;
+			}
+			.tagline {
+				margin-top: 30px;
+				font-size: 30px;
+				font-weight: 560;
+				letter-spacing: -0.02em;
+				line-height: 1.2;
+			}
+			.sub {
+				margin-top: 16px;
+				color: #a1a1a1;
+				font-size: 18px;
+				line-height: 1.45;
+			}
+			.pills {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+				margin-top: 28px;
+			}
+			.pills span {
+				padding: 5px 11px;
+				border: 1px solid #333;
+				border-radius: 999px;
+				background: rgb(255 255 255 / 0.04);
+				color: #d4d4d4;
+				font-size: 13px;
+				font-weight: 500;
+			}
+			.browser {
+				top: 74px;
+				left: 600px;
+				width: 820px;
+			}
+			.phone {
+				--s: 0.62;
+				--bezel: 8px;
+				top: 150px;
+				left: 548px;
+			}
+		</style>
+	</head>
+	<body class="dark" data-width="1280" data-height="560">
+		<div class="canvas" style="--w: 1280px; --h: 560px">
+			
+			<div class="copy">
+				<div class="brand">
+					<svg class="mark" width="72"></svg>
+					<h1>Ruby</h1>
+				</div>
+				<p class="tagline">Projects, knowledge and people for one team.</p>
+				<p class="sub">
+					Tasks and boards, a Markdown knowledge base, a people directory with encrypted HR data, and
+					time off. Open source, on one Cloudflare Worker.
+				</p>
+				<div class="pills"><span>Invite-only</span><span>Light and dark</span><span>Phone ready</span><span>MIT</span></div>
+			</div>
+			<div class="browser dark" data-shot="shots/board-desktop-dark.png" data-url="ruby.example.com/projects/DSGN"></div>
+			<div class="phone light" data-shot="shots/home-phone-light.png"></div>
+		</div>
+	</body>
+</html>

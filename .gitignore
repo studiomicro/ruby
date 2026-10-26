@@ -1,0 +1,35 @@
+node_modules
+
+# Output
+.output
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+test-results
+playwright-report
+e2e/.auth
+
+# Wrangler local secrets (see .dev.vars.example)
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+.claude/settings.local.json
+
+# Deployment values (docs/SELF_HOSTING.md): the real ids, never committed
+.deploy.env
+wrangler.*.generated.jsonc

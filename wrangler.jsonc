@@ -1,0 +1,40 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "ruby",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_als"],
+	// PLACEHOLDER: the real Cloudflare account id comes from CLOUDFLARE_ACCOUNT_ID (environment or the gitignored
+	// .deploy.env). `npm run deploy` renders wrangler.deploy.generated.jsonc and refuses to run on a leftover zero id.
+	"account_id": "00000000000000000000000000000000",
+	// One production Worker on its own custom domain, behind Cloudflare Access; no workers.dev address (it would be
+	// a second way in that the Access application, bound to the app host, does not cover).
+	"workers_dev": false,
+	// PLACEHOLDER host (RUBY_APP_HOST): the custom domain the Worker is served on.
+	"routes": [{ "pattern": "ruby.example.invalid", "custom_domain": true }],
+	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare" },
+	// Invocation logs record every request's full URL, invite tokens in `/invite/<token>` and `next=` included: off.
+	// hooks.server.ts logs one line per request without them instead.
+	"observability": { "enabled": true, "logs": { "invocation_logs": false } },
+	// ACCESS_TEAM_DOMAIN (`<team>.cloudflareaccess.com`) and ACCESS_AUD (the Access application's audience tag) are
+	// PLACEHOLDERS here; the real values come from RUBY_ACCESS_TEAM_DOMAIN and RUBY_ACCESS_AUD. While either is empty,
+	// every request to the deployed host is answered 503 (fail closed).
+	"vars": {
+		"APP_VERSION": "0.3.0",
+		"ACCESS_TEAM_DOMAIN": "team.example.invalid",
+		"ACCESS_AUD": "0000000000000000000000000000000000000000000000000000000000000000",
+		"TEAM_TIME_ZONE": "Asia/Jakarta",
+		// Secure by default: Access is required. A deployment may switch it off with RUBY_ACCESS_DISABLED=1 ("1" exactly).
+		"ACCESS_DISABLED": ""
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ruby",
+			// PLACEHOLDER: the `ruby` database's id comes from RUBY_D1_DATABASE_ID (docs/SELF_HOSTING.md step 1).
+			"database_id": "00000000-0000-4000-8000-000000000000",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [{ "binding": "FILES", "bucket_name": "ruby-files" }]
+}

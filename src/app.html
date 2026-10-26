@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<!-- viewport-fit=cover: the page draws under the Dynamic Island and home indicator and keeps clear of them
+		     through the --sai-* safe-area variables (app.css). Never maximum-scale: zoom stays available. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="robots" content="noindex, nofollow" />
+		<meta name="apple-mobile-web-app-title" content="Ruby" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfbfb" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#030303" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link
+			rel="preload"
+			href="%sveltekit.assets%/fonts/geist/1.7.2/Geist-Variable.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin="anonymous"
+		/>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div class="app-root">%sveltekit.body%</div>
+	</body>
+</html>

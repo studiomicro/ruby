@@ -1,0 +1,496 @@
+@import 'tailwindcss';
+
+/*
+ * Geist (SIL OFL 1.1, npm `geist@1.7.2`) is the UI font, self-hosted from `static/fonts` (CSP `font-src 'self'`, no
+ * third-party request), the same files and paths as Montra. One variable file covers weights 100-900. Geist Mono is
+ * used by code only and downloads when code is on screen.
+ */
+@font-face {
+	font-family: 'Geist';
+	src: url('/fonts/geist/1.7.2/Geist-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Geist Mono';
+	src: url('/fonts/geist-mono/1.7.2/GeistMono-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+/*
+ * Design tokens, after Cloudflare's Kumo design system (MIT; values ported from its theme-kumo.css, see
+ * THIRD_PARTY_NOTICES.md and docs/design/DESIGN_SYSTEM.md). Neutral greys, one blue for primary actions, links and
+ * focus; colour otherwise only for meaning (danger, success, warning). Light by default, dark through
+ * `prefers-color-scheme` unless the page says `<html data-theme="light">`, and dark whenever it says
+ * `data-theme="dark"`. Kumo's oklch values are written as the sRGB hex they render to, so test/contrast.test.ts can
+ * check every text and control pair for WCAG AA in both themes. Where a Kumo value missed AA (`--muted`, `--warning`,
+ * the control border) it is darkened here and the design doc says so. `--subtle` is for placeholders and decoration
+ * only, never for text that carries information.
+ *
+ * The device's safe areas (Dynamic Island, home indicator, landscape notch) are read here and only here: every
+ * component uses `--sai-*`, never `env(safe-area-inset-*)` itself (test/css.test.ts), so a test can emulate a notch by
+ * overriding them (Chromium cannot fake `env()`). They are 0 on desktop browsers.
+ */
+:root {
+	--sai-top: env(safe-area-inset-top, 0px);
+	--sai-right: env(safe-area-inset-right, 0px);
+	--sai-bottom: env(safe-area-inset-bottom, 0px);
+	--sai-left: env(safe-area-inset-left, 0px);
+
+	/* Surfaces (Kumo canvas, base, elevated, tint, fill, control). */
+	--bg: #fbfbfb;
+	--surface: #ffffff;
+	--elevated: #f8f8f8;
+	--surface-2: #f5f5f5;
+	--surface-3: #e5e5e5;
+	--control: #ffffff;
+	/* Lines (Kumo line, interact) and the boundary of a form control (3:1 against its surface). */
+	--border: #e6e6e6;
+	--border-strong: #d4d4d4;
+	--border-control: #8f8f8f;
+	/* Text (Kumo default, strong, subtle, placeholder). */
+	--fg: #18181b;
+	--fg-strong: #0a0a0a;
+	--muted: #666666;
+	--subtle: #8a8a8a;
+	/* Blue: `--accent` is link and current-place text (Kumo link), `--brand` the primary fill (Kumo brand). */
+	--accent: #193cb8;
+	--accent-hover: #1c398e;
+	--accent-fg: #ffffff;
+	--accent-soft: #eff6ff;
+	--brand: #155dfc;
+	--brand-hover: #1447e6;
+	--brand-fg: #ffffff;
+	/* Meaning (Kumo text-danger / -success / -warning on their tints, composited on --surface). */
+	--danger: #c10007;
+	--danger-soft: #fff3f3;
+	--success: #006045;
+	--success-soft: #ebfdf1;
+	--warning: #9a5700;
+	--warning-soft: #fffaea;
+	/* Focus: the keyboard ring (Kumo focus-visible ring) and a field's focused border (Kumo focus/50). */
+	--ring: #155dfc;
+	--field-focus: #858585;
+	/* Behind a dialog or sheet (Kumo recessed at 80 %), and Ruby's own mark. */
+	--backdrop: rgb(242 242 242 / 0.8);
+	--logo: #b4233c;
+	/* Kumo shadow-xs and shadow-lg. */
+	--shadow-1: 0 1px 2px rgb(0 0 0 / 0.05);
+	--shadow-2: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+	--font: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	/* Kumo's type scale: 12 / 13 / 14 (base) / 16, plus two heading sizes. */
+	--text-xs: 12px;
+	--text-sm: 13px;
+	--text-base: 14px;
+	--text-lg: 16px;
+	--text-xl: 18px;
+	--text-2xl: 24px;
+	/* Kumo radii: md (small controls, menu items), lg (buttons, fields, cards), xl (dialogs, sheets, toasts). */
+	--radius-s: 6px;
+	--radius-m: 8px;
+	--radius-l: 8px;
+	--radius-xl: 12px;
+	/* Kumo motion: 100 ms for state changes, 150 ms for overlays. */
+	--dur-fast: 100ms;
+	--dur: 150ms;
+	--ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+	/* Shell metrics (src/routes/(app)/+layout.svelte). */
+	--sidebar-w: 232px;
+	--topbar-h: 52px;
+	--tabbar-h: 56px;
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		--bg: #030303;
+		--surface: #0f0f0f;
+		--elevated: #060606;
+		--surface-2: #262626;
+		--surface-3: #333333;
+		--control: #18181b;
+		--border: #333333;
+		--border-strong: #404040;
+		--border-control: #737373;
+		--fg: #f5f5f5;
+		--fg-strong: #fafafa;
+		--muted: #a1a1a1;
+		--subtle: #7a7a7a;
+		--accent: #51a2ff;
+		--accent-hover: #8ec5ff;
+		--accent-fg: #0a0a0a;
+		--accent-soft: #12182b;
+		--brand: #045ede;
+		--brand-hover: #1447e6;
+		--brand-fg: #ffffff;
+		--danger: #ff6467;
+		--danger-soft: #260c0d;
+		--success: #a4f4cf;
+		--success-soft: #0e1d15;
+		--warning: #ff8904;
+		--warning-soft: #2a1c09;
+		--ring: #51a2ff;
+		--field-focus: #808082;
+		--backdrop: rgb(11 11 11 / 0.8);
+		--logo: #f27a8e;
+		--shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+		--shadow-2: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+		color-scheme: dark;
+	}
+}
+
+:root[data-theme='dark'] {
+	--bg: #030303;
+	--surface: #0f0f0f;
+	--elevated: #060606;
+	--surface-2: #262626;
+	--surface-3: #333333;
+	--control: #18181b;
+	--border: #333333;
+	--border-strong: #404040;
+	--border-control: #737373;
+	--fg: #f5f5f5;
+	--fg-strong: #fafafa;
+	--muted: #a1a1a1;
+	--subtle: #7a7a7a;
+	--accent: #51a2ff;
+	--accent-hover: #8ec5ff;
+	--accent-fg: #0a0a0a;
+	--accent-soft: #12182b;
+	--brand: #045ede;
+	--brand-hover: #1447e6;
+	--brand-fg: #ffffff;
+	--danger: #ff6467;
+	--danger-soft: #260c0d;
+	--success: #a4f4cf;
+	--success-soft: #0e1d15;
+	--warning: #ff8904;
+	--warning-soft: #2a1c09;
+	--ring: #51a2ff;
+	--field-focus: #808082;
+	--backdrop: rgb(11 11 11 / 0.8);
+	--logo: #f27a8e;
+	--shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+	--shadow-2: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+	color-scheme: dark;
+}
+
+/* The tokens as Tailwind utilities: `bg-surface`, `text-muted`, `border-border`, `bg-brand`, `text-danger` … */
+@theme inline {
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-elevated: var(--elevated);
+	--color-surface-2: var(--surface-2);
+	--color-surface-3: var(--surface-3);
+	--color-control: var(--control);
+	--color-border: var(--border);
+	--color-border-strong: var(--border-strong);
+	--color-border-control: var(--border-control);
+	--color-fg: var(--fg);
+	--color-fg-strong: var(--fg-strong);
+	--color-muted: var(--muted);
+	--color-subtle: var(--subtle);
+	--color-accent: var(--accent);
+	--color-accent-hover: var(--accent-hover);
+	--color-accent-fg: var(--accent-fg);
+	--color-accent-soft: var(--accent-soft);
+	--color-brand: var(--brand);
+	--color-brand-hover: var(--brand-hover);
+	--color-brand-fg: var(--brand-fg);
+	--color-danger: var(--danger);
+	--color-danger-soft: var(--danger-soft);
+	--color-success: var(--success);
+	--color-success-soft: var(--success-soft);
+	--color-warning: var(--warning);
+	--color-warning-soft: var(--warning-soft);
+	--font-sans: var(--font);
+	--font-mono: var(--font-mono);
+	--radius-s: var(--radius-s);
+	--radius-m: var(--radius-m);
+	--radius-l: var(--radius-l);
+	--radius-xl: var(--radius-xl);
+}
+
+/* Kumo's dense base size (14 px) from tablet up; phones read a little larger. */
+html {
+	background: var(--bg);
+	color: var(--fg);
+	font-family: var(--font);
+	font-size: 15px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	-webkit-text-size-adjust: 100%;
+}
+@media (min-width: 768px) {
+	html {
+		font-size: 14px;
+	}
+}
+
+/*
+ * Below 768 px the shell's tab bar is fixed to the bottom and the top bar sticks to the top (+layout.svelte):
+ * whatever the browser scrolls into view (a focused control, a #hash target) stops clear of both, never under them
+ * (RB-03 QA F1). Pages without the shell (sign-in) only get a little more room.
+ */
+@media (max-width: 767px) {
+	html {
+		scroll-padding-top: calc(var(--topbar-h) + var(--sai-top) + 8px);
+		scroll-padding-bottom: calc(var(--tabbar-h) + var(--sai-bottom) + 16px);
+	}
+}
+
+body {
+	margin: 0;
+	min-height: 100dvh;
+	background: var(--bg);
+}
+
+/* Long words and URLs wrap instead of widening the page (360 px). */
+h1,
+h2,
+h3,
+p,
+li,
+td,
+th,
+dd {
+	overflow-wrap: anywhere;
+}
+
+/*
+ * iOS zooms the page when a field under 16 px gets focus, and zoom must stay available to the user (no
+ * `maximum-scale`). The floor is unlayered so it beats Tailwind's layers.
+ */
+input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']),
+select,
+textarea {
+	font-size: max(16px, 1em);
+}
+
+/* Kumo's keyboard focus: a 2 px blue ring hugging the control. */
+:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 1px;
+}
+
+::selection {
+	background: color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+/*
+ * Checkboxes and radios in Kumo's look (a 16 px box with the control border, filled with the text colour when
+ * checked), for the kit's Checkbox and for every bare <input type="checkbox"> in a feature. A switch
+ * (role="switch", #lib/ui/kit/Switch.svelte) draws itself.
+ */
+input[type='checkbox']:not([role='switch']),
+input[type='radio'] {
+	appearance: none;
+	display: inline-grid;
+	place-content: center;
+	flex: none;
+	box-sizing: border-box;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	border: 1px solid var(--border-control);
+	border-radius: 4px;
+	background: var(--control);
+	vertical-align: -3px;
+	cursor: pointer;
+	transition:
+		background-color var(--dur-fast) var(--ease),
+		border-color var(--dur-fast) var(--ease);
+}
+input[type='radio'] {
+	border-radius: 50%;
+}
+input[type='checkbox']:not([role='switch'])::before {
+	content: '';
+	width: 8px;
+	height: 4px;
+	margin-top: -2px;
+	border-bottom: 2px solid var(--surface);
+	border-left: 2px solid var(--surface);
+	transform: rotate(-45deg);
+	opacity: 0;
+}
+input[type='radio']::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--surface);
+	opacity: 0;
+}
+input[type='checkbox']:not([role='switch']):is(:checked, :indeterminate),
+input[type='radio']:checked {
+	border-color: var(--fg);
+	background: var(--fg);
+}
+input[type='checkbox']:not([role='switch']):checked::before,
+input[type='radio']:checked::before {
+	opacity: 1;
+}
+input[type='checkbox']:not([role='switch']):indeterminate::before {
+	width: 8px;
+	height: 0;
+	margin: 0;
+	border-left: 0;
+	transform: none;
+	opacity: 1;
+}
+input[type='checkbox']:not([role='switch'])[aria-invalid='true'] {
+	border-color: var(--danger);
+}
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/*
+ * Visually hidden, still read by screen readers. `left: 0` pins it to its containing block's start edge: at its static
+ * position, a hidden label inside a sideways-scrolling box (the board's far columns) escaped that box and widened a
+ * phone's layout viewport, pushing the fixed tab bar off-screen (RB-10).
+ */
+.sr-only {
+	position: absolute;
+	left: 0;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/*
+ * Rendered Markdown (#lib/ui/kit/Markdown.svelte). Unlayered element styles scoped to `.markdown`, since the HTML
+ * comes from {@html} and Svelte cannot scope it. Code blocks and tables scroll inside their own box, never the page.
+ */
+.markdown {
+	color: var(--fg);
+	line-height: 1.65;
+	overflow-wrap: anywhere;
+	min-width: 0;
+}
+.markdown > :first-child {
+	margin-top: 0;
+}
+.markdown > :last-child {
+	margin-bottom: 0;
+}
+.markdown :is(p, ul, ol, blockquote, pre, table) {
+	margin: 0 0 0.85em;
+}
+.markdown :is(h1, h2, h3, h4, h5, h6) {
+	margin: 1.4em 0 0.5em;
+	color: var(--fg-strong);
+	line-height: 1.25;
+	font-weight: 600;
+	letter-spacing: -0.015em;
+}
+.markdown h1 {
+	font-size: 1.6rem;
+}
+.markdown h2 {
+	font-size: 1.3rem;
+}
+.markdown h3 {
+	font-size: 1.1rem;
+}
+.markdown :is(h4, h5, h6) {
+	font-size: 1rem;
+}
+.markdown :is(ul, ol) {
+	padding-left: 1.4em;
+}
+.markdown ul {
+	list-style: disc;
+}
+.markdown ol {
+	list-style: decimal;
+}
+.markdown li + li {
+	margin-top: 0.2em;
+}
+.markdown a {
+	color: var(--accent);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+	text-underline-offset: 2px;
+}
+.markdown a:hover {
+	text-decoration-color: currentColor;
+}
+.markdown blockquote {
+	padding: 0.1em 0 0.1em 1em;
+	border-left: 3px solid var(--border-strong);
+	color: var(--muted);
+}
+.markdown code {
+	font-family: var(--font-mono);
+	font-size: 0.88em;
+	padding: 0.1em 0.35em;
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	background: var(--surface-2);
+}
+.markdown pre {
+	overflow-x: auto;
+	max-width: 100%;
+	padding: 0.8em 1em;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-m);
+	background: var(--elevated);
+	overflow-wrap: normal;
+}
+.markdown pre code {
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: 0.85em;
+}
+.markdown table {
+	display: block;
+	overflow-x: auto;
+	max-width: 100%;
+	border-collapse: collapse;
+}
+.markdown :is(th, td) {
+	padding: 0.45em 0.75em;
+	border: 1px solid var(--border);
+	text-align: left;
+	overflow-wrap: normal;
+}
+.markdown th {
+	background: var(--elevated);
+	font-weight: 600;
+}
+.markdown hr {
+	margin: 1.5em 0;
+	border: 0;
+	border-top: 1px solid var(--border);
+}
+.markdown img {
+	max-width: 100%;
+	height: auto;
+}
+.markdown .mention {
+	padding: 0 0.25em;
+	border-radius: 4px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-weight: 500;
+	white-space: nowrap;
+}
