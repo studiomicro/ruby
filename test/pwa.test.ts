@@ -212,7 +212,7 @@ describe('static headers (_headers, AC14)', () => {
 	const headers = readFileSync('_headers', 'utf8');
 	const rule = (path: string) => {
 		const match = headers.match(
-			new RegExp(`^${path.replace(/[.*]/g, '\\$&')}\\n((?:  .*\\n?)+)`, 'm')
+			new RegExp(`^${path.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}\\n((?:  .*\\n?)+)`, 'm')
 		);
 		return match?.[1] ?? '';
 	};
