@@ -24,6 +24,7 @@ import {
 	type Discussion
 } from '../helpers/seed-discussion';
 import { seedProject } from '../helpers/seed-tasks';
+import { pinToWindowStart } from '../helpers/clock';
 
 /**
  * RB-03 red-team re-check after cycle 2 (see SECURITY_REPORT.md › "Re-check after cycle 2"). Every test asserts
@@ -232,6 +233,7 @@ describe('L1: one mention notification per user per comment', () => {
 
 describe('L2: mention-search throttle', () => {
 	it('60 lookups a minute, then 429 with Retry-After and no-store; another user keeps its own budget', async () => {
+		pinToWindowStart(60_000);
 		for (let i = 0; i < MENTION_SEARCH_PER_MINUTE; i++)
 			expect((await api(s.author)).status).toBe(200);
 		const over = await api(s.author);
