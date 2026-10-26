@@ -6,8 +6,11 @@
 	comment action comes back as `page.form.comment` and is shown next to the form it belongs to, with the typed text.
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { flip } from 'svelte/animate';
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import { flipParams, leave, markSaved, rise } from '#lib/ui/motion';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import type { CommentFormResult, ThreadData } from '#lib/shared/comments';
 	import Avatar from '#lib/ui/kit/Avatar.svelte';
 	import Banner from '#lib/ui/kit/Banner.svelte';
@@ -28,6 +31,16 @@
 	/** The comment opened for editing: `?cedit=`, or the one an edit refusal was about. */
 	const editingId = $derived(result?.action === 'edit' && result.id ? result.id : thread.editingId);
 	let deleting = $state<string | null>(null);
+
+	/**
+	 * RB-20 Part B: after a comment is posted or edited, the action redirects to `#comment-<id>`; that comment gets the
+	 * just-saved highlight. Only for a navigation inside the app, never on a page load or reload.
+	 */
+	afterNavigate((navigation) => {
+		if (navigation.type === 'enter') return;
+		const id = navigation.to?.url.hash.match(/^#comment-([\w-]+)$/)?.[1];
+		if (id) markSaved(document.getElementById(`comment-${id}`));
+	});
 </script>
 
 <section id="comments" class="thread" aria-labelledby="comments-heading">
@@ -53,7 +66,13 @@
 		{/if}
 		<ol class="list">
 			{#each thread.comments as c (c.id)}
-				<li id="comment-{c.id}" class="comment">
+				<li
+					id="comment-{c.id}"
+					class="comment"
+					in:rise|local
+					out:leave|local={{ instant: true }}
+					animate:flip={flipParams(thread.comments.length)}
+				>
 					<Avatar name={c.authorName} seed={c.authorId} />
 					<div class="content">
 						<p class="meta">

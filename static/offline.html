@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+	RB-20: shown by the service worker for a page load while the device is offline. Served from Cache Storage, outside
+	SvelteKit, so it carries no script and no inline style (offline.css, also cached) and its own CSP (_headers). It is
+	generic on purpose: no name, no project, no data, so it is safe on a shared device.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="robots" content="noindex, nofollow" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfbfb" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#030303" />
+		<title>Offline · Ruby</title>
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="stylesheet" href="/offline.css" />
+	</head>
+	<body>
+		<main>
+			<img class="mark" src="/favicon.svg" alt="" width="40" height="40" />
+			<h1>You are offline</h1>
+			<p>Ruby needs a connection to show your work. Check your signal and try again.</p>
+			<p class="note">Nothing is saved while you are offline.</p>
+			<a class="retry" href="/">Try again</a>
+		</main>
+	</body>
+</html>

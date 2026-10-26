@@ -10,7 +10,7 @@
 | ID | RB-20 (proposed here; the request gave no ID) |
 | Status | Approved (owner decisions answered 2026-10-26) |
 | Risk tier | **Medium** by default. **Large** if the owner turns Web Push on (O6). See [Risk tier](#risk-tier) |
-| Release version | **0.10.0** (0.5.0 RB-12, 0.6.0 RB-16, 0.7.0 RB-17, 0.8.0 RB-18, 0.9.0 RB-19). Release note `src/lib/content/releases/0.10.0.md` |
+| Release version | **0.5.0** (owner answer O13: RB-20 ships next; later features take the following versions). Release note `src/lib/content/releases/0.5.0.md` |
 | Migration | **None in the default build.** Only if O6 = yes: `0017_push_subscriptions.sql` |
 | Depends on | Hard: RB-00 shell and the phone layout (`CLAUDE.md:74-77`), RB-11. Soft: RB-12, RB-09 (see [Dependencies](#dependencies)) |
 | Owner | Owner (request by the owner) |
@@ -37,7 +37,7 @@ Pipeline: engineer + QA + red team (the service worker is a shared-device data-l
 
 ### Version and migration notes
 
-- `package.json` and `wrangler.jsonc` `APP_VERSION` are set to 0.10.0 so the RB-11 deploy guard passes.
+- `package.json`, `package-lock.json` and `APP_VERSION` in `wrangler.jsonc` and `workers/jobs/wrangler.jsonc` are set to 0.5.0 so the RB-11 deploy guard passes.
 - Migration `0017` only if O6 = yes. 0013 is RB-16, 0014 RB-17, 0015 RB-18, 0016 RB-19 (taken). Confirm 0017 is free at merge.
 
 ## Contents
@@ -71,8 +71,8 @@ Ruby is used all day from phones (the layout work already exists) but it is stil
 This increment makes Ruby installable on iOS and Android. It gives Ruby a branded launch, a safe offline fallback, and a service worker that makes
 loading faster without ever keeping one person's data where the next person on the same phone could see it.
 
-It ports the approach of Montra's FN-13/FN-13b: read-only offline shell, no write queue, versioned shell cache, SKIP_WAITING handshake, pure `sw-policy`
-module. It is adapted to Ruby's rules: an internal HR-adjacent app behind Cloudflare Access, English only, no Montra branding.
+Its design: a read-only offline shell, no write queue, versioned shell cache, SKIP_WAITING handshake, pure `sw-policy`
+module. It is adapted to Ruby's rules: an internal HR-adjacent app behind Cloudflare Access, English only, Ruby branding only.
 
 ## 2. Scope
 
@@ -136,7 +136,7 @@ CTO calls in 4.1 to 4.6 (D1 to D6); the owner can override them under [Owner dec
 
 ### 4.1 D1. Read-only offline shell, no write queue
 
-Same decision as Montra FN-13. The service worker stores only the build's own files and a few static assets, plus one offline page.
+A read-only offline shell. The service worker stores only the build's own files and a few static assets, plus one offline page.
 
 It stores no page HTML, no `__data.json`, no `/api/*`, no `/files/*`. Offline, Ruby shows a clear "You are offline" page and reads nothing stale.
 
@@ -201,7 +201,7 @@ Storage and from the assets binding outside SvelteKit's CSP pipeline.
 Chosen design: **external stylesheet `/offline.css` and no script at all**. "Try again" is a plain link to `/` (a full navigation).
 
 - English text: "You are offline. Ruby needs a connection to show your work. Check your signal and try again."
-- No Montra text, no Indonesian.
+- Ruby text only, in English.
 - Uses Geist (precached) and the app's light and dark tokens via `prefers-color-scheme`.
 - Safe-area padding via `env()` is acceptable here only because this static file is outside the `--sai-*` rule.
   The CSS test scope is `src/`. The engineer confirms `test/css.test.ts` does not scan `static/`; otherwise define the `--sai-*` variables at the top of
@@ -211,7 +211,7 @@ Chosen design: **external stylesheet `/offline.css` and no script at all**. "Try
 
 Self-generated from `static/favicon.svg` (the ruby-red mark) by `scripts/generate-icons.ts`.
 
-- Run by hand, committed outputs, never part of `gates` or `build` (like Montra's `generate-splash-screens.ts`).
+- Run by hand, committed outputs, never part of `gates` or `build` (like `scripts/generate-splash-screens.ts`).
 
 | File | Purpose / size |
 | --- | --- |
@@ -227,7 +227,7 @@ Self-generated from `static/favicon.svg` (the ruby-red mark) by `scripts/generat
 
 ### 4.8 Web app manifest
 
-Served as a static file `static/manifest.webmanifest` (Ruby has no per-plan icons, so no dynamic route like Montra's), with
+Served as a static file `static/manifest.webmanifest` (Ruby has no per-plan icons, so no dynamic manifest route), with
 `Content-Type: application/manifest+json` via `_headers`.
 
 | Member | Value |
@@ -289,7 +289,7 @@ Served as a static file `static/manifest.webmanifest` (Ruby has no per-plan icon
 
 **Launch images**
 
-- `scripts/generate-splash-screens.ts` (ported from Montra): mark centred on `--bg`, `#fbfbfb` light and `#030303` dark, to match `app.css` tokens.
+- `scripts/generate-splash-screens.ts`: mark centred on `--bg`, `#fbfbfb` light and `#030303` dark, to match `app.css` tokens.
 - It writes `static/splash/splash-<w>x<h>-<light|dark>.png` and `src/lib/shared/splash-screens.ts` (the table the layout and tests read).
 
 Device table (portrait, CSS points, scale to pixels):
@@ -323,7 +323,7 @@ Files: `src/service-worker/index.ts`, `src/lib/shared/sw-policy.ts`, `src/lib/sh
 
 - Open cache `ruby-shell-<version>` (`version` from `$app/service-worker`, the build id; the same id SvelteKit's `_app/version.json` carries).
 - `addAll(shellPaths(build, files))`: the build's immutable JS/CSS, `offline.html`, `offline.css`, `icons/*` (small ones), `manifest.webmanifest`,
-  `favicon.svg`, the Geist variable font only (as Montra).
+  `favicon.svg`, the Geist variable font only.
 - Excluded: `splash/`, `screenshots/`, other fonts, anything matching a data path.
 - First install `skipWaiting()`s; an update waits.
 
@@ -500,7 +500,7 @@ variable, no table. Only this design is recorded. With O6 = yes (second pass):
 - The logout form posts this browser's endpoint and the server deletes `WHERE user_id = ? AND endpoint = ?`.
 - Deactivating a user (admin) deletes all their subscriptions in the same `db.batch`.
 
-**SW handlers** (ported from Montra)
+**SW handlers**
 
 - `push`: parse defensively, `showNotification` with the Ruby icon and `data.url`. If the payload is invalid, show a generic "Ruby" notification rather than
   nothing, as iOS may revoke permission after silent pushes.
@@ -519,7 +519,7 @@ variable, no table. Only this design is recorded. With O6 = yes (second pass):
 
 **New**
 
-- `src/service-worker/index.ts` (+ `tsconfig.json` per Montra), `src/lib/shared/sw-policy.ts`, `sw-update.ts` (+ tests).
+- `src/service-worker/index.ts` (+ its own `tsconfig.json` extending `$app/tsconfig/service-worker`), `src/lib/shared/sw-policy.ts`, `sw-update.ts` (+ tests).
 - `src/lib/ui/pwa/{register,install,online}.svelte.ts`, `InstallEntry.svelte`, `OfflineBanner.svelte`, `offline-form.ts`.
 - Route-parent table beside `nav.ts`.
 - `static/{manifest.webmanifest,offline.html,offline.css,icons/*,splash/*,screenshots/*}`.
@@ -752,7 +752,7 @@ Verification levels per `docs/ACCEPTANCE.md`: [A] Automated (Vitest/Playwright),
   fetchable signed-out (they contain nothing private) and still sit behind Access.
 - [ ] AC25 [A] Shell cache size <= 3 MB; precache list has no `splash/`, `screenshots/` or non-Geist fonts.
 - [ ] AC26 [A] CSS guard (`test/css.test.ts`) still passes: no component uses `env(safe-area-inset-*)` directly; `offline.css` is the documented exception.
-- [ ] AC27 [A] `package.json`, `APP_VERSION` and `src/lib/content/releases/0.10.0.md` agree at 0.10.0 (RB-11 test). The note is plain English, says how to
+- [ ] AC27 [A] `package.json`, `APP_VERSION` and `src/lib/content/releases/0.5.0.md` agree at 0.5.0 (RB-11 test). The note is plain English, says how to
   install, mentions the offline page, and states that nothing is saved offline.
 - [ ] AC28 [M] Installability on a real Android Chrome and a real iPhone (Add to Home Screen, standalone launch, splash shown, status bar legible, no content
   under the Dynamic Island in portrait and landscape, back control works, update banner appears after a staging deploy and Reload applies it) is recorded as
@@ -810,7 +810,7 @@ Answer once, before the build. Proposed defaults in bold.
 | O10 | App badge (unread count on the home-screen icon) | Now / Later | **Later,** with push; not in this pass | default (owner 2026-10-26) |
 | O11 | Manifest `orientation` | `any` / portrait only | **`any`** (landscape allowed, safe areas verified) | default (owner 2026-10-26) |
 | O12 | Store listing screenshots in the manifest | Yes / No | **Yes,** 2 narrow + 1 wide from seed data only | default (owner 2026-10-26) |
-| O13 | Version number | 0.10.0 / other | **0.10.0** | **0.5.0** — RB-20 ships next (owner 2026-10-26); later features take the following versions |
+| O13 | Version number | next free version / later | next free version | **0.5.0** — RB-20 ships next (owner 2026-10-26); later features take the following versions |
 
 ## 15. Out of scope / later
 
@@ -826,7 +826,7 @@ Answer once, before the build. Proposed defaults in bold.
 
 ## 16. Release note draft
 
-> **Ruby 0.10.0: install Ruby on your phone**
+> **Ruby 0.5.0: install Ruby on your phone**
 >
 > You can now add Ruby to your home screen and open it like an app. On iPhone, tap Share in Safari, then "Add to Home Screen", then "Add". On Android and
 > desktop Chrome, use "Install Ruby" in Account or in the More menu.

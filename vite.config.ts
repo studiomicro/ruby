@@ -9,6 +9,9 @@ export default defineConfig({
 		tailwindcss(),
 		sveltekit({
 			adapter: adapter({ platformProxy: { remoteBindings: false } }),
+			// RB-20: src/lib/ui/pwa/register.svelte.ts registers the service worker itself (never under `vite dev`), so the
+			// page can watch a waiting update and the update banner can let it take over.
+			serviceWorker: { register: false },
 			csp: { mode: 'auto', directives: CSP_DIRECTIVES },
 			// Polls /_app/version.json every minute; `updated` (UpdateBanner) turns true when a new build is deployed.
 			version: { pollInterval: 60_000 },

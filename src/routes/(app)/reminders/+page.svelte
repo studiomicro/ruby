@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { offsetLabel } from '#lib/shared/calendar';
 	import { OUTCOME_TEXT, whenText } from '#lib/ui/calendar/when';
 	import Banner from '#lib/ui/kit/Banner.svelte';

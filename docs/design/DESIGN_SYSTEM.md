@@ -75,9 +75,13 @@ compute every pair. The table maps each Ruby token to its Kumo source.
   and the empty state.
 - **Shadow:** `--shadow-1` (Kumo `shadow-xs`) for buttons and cards. `--shadow-2` (Kumo `shadow-lg`) for menus, sheets,
   dialogs and toasts. A shadow is always paired with a 1 px `--border`.
-- **Motion:** `--dur-fast` 100 ms for colour and state changes. `--dur` 150 ms for overlays. `--ease` is the standard
-  curve. Each component turns its own animation off under `prefers-reduced-motion`. There is no global
-  `transition-duration` override: one would make every property change transition, layout changes included.
+- **Motion (RB-20 Part B, `docs/features/rb-20-mobile-pwa/MOTION.md`):** `--dur-fast` 120 ms for colour and state
+  changes and for leaving, `--dur` 200 ms for menus, toasts, banners, list rows and the board, `--dur-slow` 280 ms for
+  sheets and dialogs, `--dur-loop` 1200 ms for the skeleton shimmer only. `--ease` for state changes, `--ease-out` for
+  entering, `--ease-in` for leaving. Motion explains a change and never decorates: only `transform` and `opacity`
+  move, movement sits under `prefers-reduced-motion: no-preference`, and under reduce at most an opacity fade remains.
+  There is no global `transition-duration` override: one would make every property change transition, layout changes
+  included. `test/motion-css.test.ts` enforces the rules; `src/lib/ui/motion.ts` holds the script side.
 
 ## Base styles
 

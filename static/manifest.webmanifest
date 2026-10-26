@@ -1,0 +1,86 @@
+{
+	"name": "Ruby",
+	"short_name": "Ruby",
+	"description": "Projects, tasks and the knowledge base for your team.",
+	"lang": "en",
+	"dir": "ltr",
+	"id": "/",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"display_override": ["standalone", "minimal-ui"],
+	"orientation": "any",
+	"background_color": "#fbfbfb",
+	"theme_color": "#fbfbfb",
+	"categories": ["productivity", "business"],
+	"prefer_related_applications": false,
+	"icons": [
+		{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+		{ "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+		{
+			"src": "/icons/icon-maskable-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "maskable"
+		},
+		{
+			"src": "/icons/icon-maskable-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		},
+		{
+			"src": "/icons/icon-monochrome-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "monochrome"
+		},
+		{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+	],
+	"shortcuts": [
+		{
+			"name": "Projects",
+			"short_name": "Projects",
+			"description": "Open a project to add a task",
+			"url": "/projects",
+			"icons": [{ "src": "/icons/shortcut-projects.png", "sizes": "96x96", "type": "image/png" }]
+		},
+		{
+			"name": "My tasks",
+			"short_name": "My tasks",
+			"description": "The tasks assigned to you",
+			"url": "/my-tasks",
+			"icons": [{ "src": "/icons/shortcut-tasks.png", "sizes": "96x96", "type": "image/png" }]
+		},
+		{
+			"name": "Search",
+			"short_name": "Search",
+			"description": "Search pages and tasks",
+			"url": "/search",
+			"icons": [{ "src": "/icons/shortcut-search.png", "sizes": "96x96", "type": "image/png" }]
+		}
+	],
+	"screenshots": [
+		{
+			"src": "/screenshots/narrow-home.png",
+			"sizes": "1080x1920",
+			"type": "image/png",
+			"form_factor": "narrow",
+			"label": "Home: your work at a glance"
+		},
+		{
+			"src": "/screenshots/narrow-people.png",
+			"sizes": "1080x1920",
+			"type": "image/png",
+			"form_factor": "narrow",
+			"label": "The team directory"
+		},
+		{
+			"src": "/screenshots/wide-home.png",
+			"sizes": "1280x720",
+			"type": "image/png",
+			"form_factor": "wide",
+			"label": "Ruby on a desktop"
+		}
+	]
+}

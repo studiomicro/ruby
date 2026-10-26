@@ -9,7 +9,8 @@
 -->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { deserialize, enhance } from '$app/forms';
+	import { deserialize, type SubmitFunction } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { invalidateAll } from '$app/navigation';
 	import {
 		TASK_STATUS_LABELS,
@@ -24,6 +25,7 @@
 	import Due from './Due.svelte';
 	import Priority from './Priority.svelte';
 	import ChecklistProgress from '#lib/ui/pm/ChecklistProgress.svelte';
+	import { bump, flip, markSaved, measure } from '#lib/ui/motion';
 	import LabelChip from '#lib/ui/pm/LabelChip.svelte';
 
 	type Card = {
@@ -154,6 +156,8 @@
 		const snapshot = columns;
 		const card = snapshot.flatMap((c) => c.tasks).find((t) => t.id === d.taskId);
 		if (!card) return;
+		// RB-20 Part B: every card glides from where it was (FLIP, also across columns); see #lib/ui/motion.
+		const before = measure(boardEl, 'data-card');
 		columns = snapshot.map((c) => {
 			let tasks = c.tasks.filter((t) => t.id !== d.taskId);
 			let count = c.count - (c.status === d.from ? 1 : 0);
@@ -164,6 +168,8 @@
 			return { ...c, tasks, count };
 		});
 		busyId = d.taskId;
+		await tick();
+		flip(boardEl, 'data-card', before);
 		const body = new FormData();
 		body.set('taskId', d.taskId);
 		body.set('status', d.over);
@@ -177,9 +183,16 @@
 			const result = deserialize(await response.text());
 			if (result.type === 'success') {
 				announcement = `Moved ${refOf(d.taskId)} to ${labelOf(d.over)}.`;
+				const local = measure(boardEl, 'data-card');
 				await invalidateAll();
+				await tick();
+				flip(boardEl, 'data-card', local);
+				markSaved(boardEl?.querySelector(`[data-card="${d.taskId}"]`));
 			} else {
+				const moved = measure(boardEl, 'data-card');
 				columns = snapshot;
+				await tick();
+				flip(boardEl, 'data-card', moved);
 				const message =
 					result.type === 'failure' && typeof result.data?.moveError === 'string'
 						? result.data.moveError
@@ -187,7 +200,10 @@
 				showToast(message);
 			}
 		} catch {
+			const moved = measure(boardEl, 'data-card');
 			columns = snapshot;
+			await tick();
+			flip(boardEl, 'data-card', moved);
 			showToast('The task could not be moved. Check the connection and try again.');
 		} finally {
 			busyId = null;
@@ -195,6 +211,19 @@
 		await tick();
 		boardEl?.querySelector<HTMLElement>(`[data-handle="${d.taskId}"]`)?.focus();
 	}
+
+	/** The phone and no-drag "Move" form: the same FLIP and highlight as a drag (RB-20 Part B). */
+	const moveSubmit: SubmitFunction = ({ formData }) => {
+		const before = measure(boardEl, 'data-card');
+		const taskId = String(formData.get('taskId') ?? '');
+		return async ({ update, result }) => {
+			await update();
+			await tick();
+			flip(boardEl, 'data-card', before);
+			if (result.type === 'success' || result.type === 'redirect')
+				markSaved(boardEl?.querySelector(`[data-card="${CSS.escape(taskId)}"]`));
+		};
+	};
 
 	// ── Pointer ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -343,7 +372,9 @@
 			<header class="column-head">
 				<h2 id="col-{column.status}">
 					<span class="col-name">{labelOf(column.status)}</span>
-					<span class="count" aria-label="{column.count} tasks">{column.count}</span>
+					<span class="count" aria-label="{column.count} tasks"
+						>{#key column.count}<span class="num" in:bump|local>{column.count}</span>{/key}</span
+					>
 					{#if wipOf(column.status)}
 						{@const wip = wipOf(column.status)!}
 						<span
@@ -423,7 +454,7 @@
 						{#if !archived}
 							<details class="move">
 								<summary>Move</summary>
-								<form method="POST" action={moveAction} class="move-form" use:enhance>
+								<form method="POST" action={moveAction} class="move-form" use:enhance={moveSubmit}>
 									<input type="hidden" name="taskId" value={card.id} />
 									<Select
 										label="Status"
@@ -496,6 +527,13 @@
 	}
 	.column.target {
 		border-color: var(--accent);
+	}
+	/* RB-20 Part B: the drop target lights up (colour only, no layout change); the count bump needs a box to scale. */
+	.column {
+		transition: border-color var(--dur-fast) var(--ease);
+	}
+	.num {
+		display: inline-block;
 	}
 	.column-head {
 		display: flex;

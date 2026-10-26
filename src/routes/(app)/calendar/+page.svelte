@@ -9,7 +9,9 @@
 		type CalendarSource,
 		type CalendarView
 	} from '#lib/shared/calendar';
+	import { afterNavigate } from '$app/navigation';
 	import { groupByDay } from '#lib/shared/calendar-items';
+	import { DURATION_MS, EASE_OUT, motionAllowed } from '#lib/ui/motion';
 	import Chip from '#lib/ui/calendar/Chip.svelte';
 	import ItemLine from '#lib/ui/calendar/ItemLine.svelte';
 	import Banner from '#lib/ui/kit/Banner.svelte';
@@ -22,6 +24,42 @@
 	import Tabs from '#lib/ui/kit/Tabs.svelte';
 
 	let { data } = $props();
+
+	/**
+	 * RB-20 Part B: a calendar step or view switch is a navigation within this page. The calendar itself (not the page)
+	 * moves once: 8 px from the side it comes from for previous/next, a slight zoom for a view switch. Never on the first
+	 * load; nothing under reduced motion. `data-dir` on the blocks records the last direction.
+	 */
+	let dir = $state<'next' | 'prev' | 'view' | 'none'>('none');
+	/** The view and date on screen before this navigation (set by the first, `enter`, navigation). */
+	let shown: { view: string | null; date: string } = { view: null, date: '' };
+	afterNavigate((navigation) => {
+		const next = { view: data.filter.view as string | null, date: data.filter.date as string };
+		dir =
+			navigation.type === 'enter'
+				? 'none'
+				: next.view !== shown.view
+					? 'view'
+					: next.date > shown.date
+						? 'next'
+						: next.date < shown.date
+							? 'prev'
+							: 'none';
+		shown = next;
+		if (dir === 'none' || !motionAllowed()) return;
+		const keyframes =
+			dir === 'view'
+				? [
+						{ opacity: 0, transform: 'scale(0.98)' },
+						{ opacity: 1, transform: 'none' }
+					]
+				: [
+						{ opacity: 0, transform: `translateX(${dir === 'next' ? 8 : -8}px)` },
+						{ opacity: 1, transform: 'none' }
+					];
+		for (const block of document.querySelectorAll('.cal-block'))
+			block.animate(keyframes, { duration: DURATION_MS.slow, easing: EASE_OUT });
+	});
 
 	const f = $derived(data.filter as CalendarFilter);
 	const zone = $derived(data.clock.zone);
@@ -149,7 +187,7 @@
 </div>
 
 {#if grid && f.view !== 'week'}
-	<section class="grid-block cal-block" class:auto aria-label="Month">
+	<section class="grid-block cal-block" class:auto aria-label="Month" data-dir={dir}>
 		<Card flush>
 			<div class="scroll-box">
 				<div class="month">
@@ -200,7 +238,7 @@
 {/if}
 
 {#if grid && f.view === 'week'}
-	<section class="week-block cal-block" aria-label="Week">
+	<section class="week-block cal-block" aria-label="Week" data-dir={dir}>
 		<nav class="strip" aria-label="Days of the week">
 			{#each gridDays as day (day.date)}
 				<a
@@ -259,7 +297,7 @@
 {/if}
 
 {#if data.ranges.agenda}
-	<section class="agenda-block cal-block" class:auto aria-label="Agenda">
+	<section class="agenda-block cal-block" class:auto aria-label="Agenda" data-dir={dir}>
 		{#if agendaDays.length === 0 && !data.loadError}
 			<EmptyState
 				title="Nothing scheduled"

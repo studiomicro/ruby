@@ -5,7 +5,7 @@
 	a native select, input or button (≥ 44 px on touch); nothing depends on hover.
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { onMount } from 'svelte';
 	import type { LabelColor } from '#lib/shared/enums';
 	import Banner from '#lib/ui/kit/Banner.svelte';

@@ -1,7 +1,7 @@
 {
 	"name": "ruby",
 	"private": true,
-	"version": "0.4.0",
+	"version": "0.5.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -21,7 +21,7 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p workers/jobs/tsconfig.json",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p workers/jobs/tsconfig.json && tsc -p src/service-worker/tsconfig.json",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test": "node scripts/machine-limits.ts && vitest run",

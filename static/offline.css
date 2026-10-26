@@ -1,0 +1,92 @@
+/*
+ * The offline page (offline.html, RB-20): the app's CSS is not available there, so the few tokens it needs are
+ * repeated from src/app.css. The one file outside src/ that reads env(safe-area-inset-*) itself: it has no --sai-*
+ * variables to read (test/css.test.ts scans src/ only).
+ */
+@font-face {
+	font-family: 'Geist';
+	src: url('/fonts/geist/1.7.2/Geist-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+	font-display: swap;
+}
+:root {
+	--bg: #fbfbfb;
+	--fg: #18181b;
+	--fg-strong: #0a0a0a;
+	--muted: #666666;
+	--brand: #155dfc;
+	--brand-fg: #ffffff;
+	--ring: #155dfc;
+	color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #030303;
+		--fg: #f5f5f5;
+		--fg-strong: #fafafa;
+		--muted: #a1a1a1;
+		--brand: #045ede;
+		--ring: #51a2ff;
+	}
+}
+html,
+body {
+	background: var(--bg);
+}
+body {
+	margin: 0;
+	color: var(--fg);
+	font-family:
+		'Geist',
+		system-ui,
+		-apple-system,
+		'Segoe UI',
+		Roboto,
+		sans-serif;
+	font-size: 15px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+main {
+	box-sizing: border-box;
+	display: grid;
+	justify-items: start;
+	gap: 12px;
+	max-width: 440px;
+	margin: 0 auto;
+	padding: calc(64px + env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px))
+		calc(48px + env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+}
+.mark {
+	display: block;
+	border-radius: 10px;
+}
+h1 {
+	margin: 4px 0 0;
+	color: var(--fg-strong);
+	font-size: 24px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+p {
+	margin: 0;
+}
+.note {
+	color: var(--muted);
+}
+.retry {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	margin-top: 8px;
+	padding: 0 18px;
+	border-radius: 8px;
+	background: var(--brand);
+	color: var(--brand-fg);
+	font-weight: 500;
+	text-decoration: none;
+}
+.retry:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}

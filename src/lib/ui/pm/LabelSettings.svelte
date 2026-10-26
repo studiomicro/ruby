@@ -3,7 +3,7 @@
 	for the project's lead, its creator or an admin (the server checks; these controls are only a convenience).
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { LABEL_COLORS, type LabelColor } from '#lib/shared/enums';
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';

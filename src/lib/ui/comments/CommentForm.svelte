@@ -11,7 +11,7 @@
 -->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { COMMENT_BODY_MAX } from '#lib/shared/comments';
 	import Banner from '#lib/ui/kit/Banner.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';

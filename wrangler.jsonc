@@ -12,7 +12,9 @@
 	"workers_dev": false,
 	// PLACEHOLDER host (RUBY_APP_HOST): the custom domain the Worker is served on.
 	"routes": [{ "pattern": "ruby.example.invalid", "custom_domain": true }],
-	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare" },
+	// RB-20: static files are served at their exact path (no `.html` stripping redirect), so the service worker can
+	// precache /offline.html as a plain 200 answer.
+	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare", "html_handling": "none" },
 	// Invocation logs record every request's full URL, invite tokens in `/invite/<token>` and `next=` included: off.
 	// hooks.server.ts logs one line per request without them instead.
 	"observability": { "enabled": true, "logs": { "invocation_logs": false } },
@@ -20,7 +22,7 @@
 	// PLACEHOLDERS here; the real values come from RUBY_ACCESS_TEAM_DOMAIN and RUBY_ACCESS_AUD. While either is empty,
 	// every request to the deployed host is answered 503 (fail closed).
 	"vars": {
-		"APP_VERSION": "0.4.0",
+		"APP_VERSION": "0.5.0",
 		"ACCESS_TEAM_DOMAIN": "team.example.invalid",
 		"ACCESS_AUD": "0000000000000000000000000000000000000000000000000000000000000000",
 		"TEAM_TIME_ZONE": "Asia/Jakarta",

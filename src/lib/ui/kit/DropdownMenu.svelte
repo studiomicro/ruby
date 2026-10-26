@@ -226,6 +226,30 @@
 	.menu[hidden] {
 		display: none;
 	}
+	/*
+	 * RB-20 Part B motion: the menu fades in dropping 4 px from its trigger (`--dur-fast`); it closes at once. Under
+	 * reduced motion it only fades.
+	 */
+	.menu:not([hidden]) {
+		transition: opacity var(--dur-fast) var(--ease-out);
+	}
+	@starting-style {
+		.menu:not([hidden]) {
+			opacity: 0;
+		}
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.menu:not([hidden]) {
+			transition:
+				opacity var(--dur-fast) var(--ease-out),
+				transform var(--dur-fast) var(--ease-out);
+		}
+		@starting-style {
+			.menu:not([hidden]) {
+				transform: translateY(-4px);
+			}
+		}
+	}
 	.menu.start {
 		left: 0;
 	}

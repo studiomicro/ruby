@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { formatDay, utcToZoned } from '#lib/shared/calendar';
 	import ReminderPanel from '#lib/ui/calendar/ReminderPanel.svelte';
 	import { timeRange } from '#lib/ui/calendar/when';

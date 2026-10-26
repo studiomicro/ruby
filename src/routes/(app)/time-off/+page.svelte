@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import { HALF_DAY_LABELS, HALF_DAY_PARTS } from '#lib/shared/enums';
 	import BalanceCards from '#lib/ui/time-off/BalanceCards.svelte';
 	import RequestList from '#lib/ui/time-off/RequestList.svelte';

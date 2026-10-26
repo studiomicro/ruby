@@ -55,6 +55,22 @@ export const FOOTER_ITEMS: NavItem[] = [
 
 export const ACCOUNT: NavItem = { href: '/account', label: 'Account', icon: 'user' };
 
+/**
+ * RB-20: app actions, buttons rather than destinations: "Install Ruby" (src/lib/ui/pwa/InstallEntry.svelte) and
+ * "Refresh" (RefreshAction.svelte). The More sheet lists them above "What's new"; the Account page's "App" section
+ * shows the same two.
+ */
+export interface AppAction {
+	id: 'install' | 'refresh';
+	label: string;
+	icon: IconName;
+}
+
+export const APP_ACTIONS: AppAction[] = [
+	{ id: 'install', label: 'Install Ruby', icon: 'download' },
+	{ id: 'refresh', label: 'Refresh', icon: 'refresh' }
+];
+
 export const visibleTo = (isAdmin: boolean) => (item: NavItem) => !item.adminOnly || isAdmin;
 
 /** What the phone More sheet lists: every destination the tab bar does not show, in sidebar order. */
@@ -67,4 +83,19 @@ export function moreItems(isAdmin: boolean): NavItem[] {
 		...FOOTER_ITEMS,
 		ACCOUNT
 	].filter(visibleTo(isAdmin));
+}
+
+export type SheetEntry = { kind: 'link'; item: NavItem } | { kind: 'action'; action: AppAction };
+
+/** The More sheet in order: `moreItems`, with the app actions right before the first footer link ("What's new"). */
+export function moreSheetEntries(isAdmin: boolean): SheetEntry[] {
+	const items = moreItems(isAdmin);
+	const footer = new Set(FOOTER_ITEMS.map((item) => item.href));
+	let at = items.findIndex((item) => footer.has(item.href));
+	if (at < 0) at = items.length;
+	return [
+		...items.slice(0, at).map((item) => ({ kind: 'link' as const, item })),
+		...APP_ACTIONS.map((action) => ({ kind: 'action' as const, action })),
+		...items.slice(at).map((item) => ({ kind: 'link' as const, item }))
+	];
 }

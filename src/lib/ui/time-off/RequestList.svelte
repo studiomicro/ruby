@@ -4,7 +4,7 @@
 	Every text is plain text (never {@html}).
 -->
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance } from '#lib/ui/pwa/offline-form';
 	import {
 		HALF_DAY_LABELS,
 		LEAVE_STATUS_LABELS,

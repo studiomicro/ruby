@@ -6,6 +6,8 @@ declare global {
 		/** What an error page may show: SvelteKit's message plus, for an unexpected error, the id of its log line. */
 		interface Error {
 			id?: string;
+			/** RB-20: set by hooks.client.ts when a form's request never reached the server (the device is offline). */
+			offline?: boolean;
 		}
 		// Cloudflare bindings come from #lib/server/env (Kit 3 sets no Platform).
 		interface Locals {
