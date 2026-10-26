@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Architecture</title>
+		<link rel="stylesheet" href="readme.css" />
+		<style>
+			.canvas {
+				background: #f4f4f5;
+			}
+			.box {
+				position: absolute;
+				padding: 16px 18px;
+				border: 1px solid var(--border-strong);
+				border-radius: 12px;
+				background: var(--surface);
+				box-shadow: var(--shadow-1);
+			}
+			.box h2 {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				color: var(--fg-strong);
+				font-size: 17px;
+				font-weight: 600;
+			}
+			.box p,
+			.box li {
+				margin-top: 6px;
+				color: var(--muted);
+				font-size: 13px;
+				line-height: 1.4;
+			}
+			.box ul {
+				margin-top: 4px;
+				list-style: none;
+			}
+			.box li::before {
+				margin-right: 7px;
+				color: var(--subtle);
+				content: '–';
+			}
+			code {
+				font-family: 'Geist Mono', ui-monospace, monospace;
+				font-size: 12px;
+				color: var(--fg);
+			}
+			.region {
+				position: absolute;
+				left: 240px;
+				top: 22px;
+				width: 990px;
+				height: 676px;
+				border: 1.5px dashed #c4c4c8;
+				border-radius: 18px;
+			}
+			.region span {
+				position: absolute;
+				top: 12px;
+				left: 18px;
+				color: #f38020;
+				font-size: 13px;
+				font-weight: 600;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+			.optional {
+				border-style: dashed;
+			}
+			.tag {
+				padding: 1px 7px;
+				border-radius: 999px;
+				background: var(--surface-2);
+				color: var(--muted);
+				font-size: 11px;
+				font-weight: 500;
+			}
+			.worker {
+				left: 490px;
+				top: 64px;
+				width: 360px;
+				height: 612px;
+				border: 1.5px solid var(--brand);
+			}
+			.worker .lead {
+				margin-top: 4px;
+			}
+			.crypto {
+				margin-top: 14px;
+				padding: 10px 12px;
+				border: 1px solid color-mix(in srgb, var(--logo) 35%, transparent);
+				border-radius: 10px;
+				background: color-mix(in srgb, var(--logo) 6%, var(--surface));
+			}
+			.crypto b {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				color: var(--logo);
+				font-size: 14px;
+				font-weight: 600;
+			}
+			.crypto p {
+				margin-top: 4px;
+			}
+			.steps-title {
+				margin-top: 16px;
+				color: var(--muted);
+				font-size: 12px;
+				font-weight: 600;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+			ol {
+				display: grid;
+				gap: 7px;
+				margin-top: 8px;
+				list-style: none;
+			}
+			ol li {
+				display: grid;
+				grid-template-columns: 22px 1fr;
+				gap: 2px 10px;
+				padding: 8px 10px;
+				border: 1px solid var(--border);
+				border-radius: 9px;
+				background: var(--elevated);
+			}
+			ol li::before {
+				display: none;
+			}
+			ol li i {
+				grid-row: span 2;
+				width: 22px;
+				height: 22px;
+				border-radius: 50%;
+				background: var(--accent-soft);
+				color: var(--accent);
+				font-size: 12px;
+				font-style: normal;
+				font-weight: 600;
+				line-height: 22px;
+				text-align: center;
+			}
+			ol li b {
+				color: var(--fg);
+				font-size: 13px;
+				font-weight: 600;
+			}
+			ol li span {
+				color: var(--muted);
+				font-size: 12px;
+			}
+			ol li,
+			ol li span {
+				margin: 0;
+			}
+			svg.arrows {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				overflow: visible;
+			}
+			.arrows path {
+				fill: none;
+				stroke: #71717a;
+				stroke-width: 1.75;
+			}
+			.arrows .cipher {
+				stroke: var(--logo);
+				stroke-dasharray: 5 4;
+			}
+			.legend {
+				position: absolute;
+				left: 30px;
+				bottom: 30px;
+				width: 190px;
+				color: #52525b;
+				font-size: 12px;
+				line-height: 1.5;
+			}
+			.legend div {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-top: 4px;
+			}
+			.legend s {
+				width: 26px;
+				border-top: 1.75px solid #71717a;
+			}
+			.legend s.cipher {
+				border-top: 1.75px dashed var(--logo);
+			}
+		</style>
+	</head>
+	<body class="light" data-width="1260" data-height="720">
+		<div class="canvas" style="--w: 1260px; --h: 720px">
+			<div class="region"><span>Cloudflare</span></div>
+
+			<svg class="arrows" viewBox="0 0 1260 720">
+				<defs>
+					<marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+						<path d="M0 0 10 5 0 10z" style="fill: #71717a; stroke: none" />
+					</marker>
+					<marker id="head-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+						<path d="M0 0 10 5 0 10z" style="fill: var(--logo); stroke: none" />
+					</marker>
+				</defs>
+				<path d="M200 360H262" marker-end="url(#head)" />
+				<path d="M450 360H482" marker-end="url(#head)" />
+				<path d="M850 196H892" class="cipher" marker-end="url(#head-red)" />
+				<path d="M850 380H892" marker-end="url(#head)" marker-start="url(#head)" />
+				<path d="M850 576H892" marker-end="url(#head)" marker-start="url(#head)" />
+			</svg>
+
+			<div class="box" style="left: 30px; top: 282px; width: 170px">
+				<h2>
+					<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2" /><path d="M3 9h18" /></svg>
+					Browser
+				</h2>
+				<p>Desktop or phone. Pages render on the server; forms post without JavaScript.</p>
+			</div>
+
+			<div class="box optional" style="left: 270px; top: 268px; width: 180px">
+				<h2>Access <span class="tag">optional</span></h2>
+				<p>Cloudflare Access login in front of the whole host. Adds a signed JWT to each request.</p>
+			</div>
+
+			<div class="box worker">
+				<h2>
+					<svg class="mark" width="22"></svg>
+					Ruby Worker
+				</h2>
+				<p class="lead">One Worker: SvelteKit server rendering, form actions and API routes.</p>
+				<div class="crypto">
+					<b>
+						<svg class="icon" viewBox="0 0 24 24" style="width: 16px; height: 16px"><rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" /></svg>
+						HR field encryption
+					</b>
+					<p>AES-256-GCM in the Worker, keyed by the secret <code>HR_DATA_KEY</code>. Values leave it only as ciphertext.</p>
+				</div>
+				<p class="steps-title">Every request, in order</p>
+				<ol>
+					<li><i>1</i><b>CSRF check</b><span>Cross-site form posts are refused.</span></li>
+					<li><i>2</i><b>HTTPS only</b><span>Plain HTTP is redirected on a deployed host.</span></li>
+					<li><i>3</i><b>Access JWT</b><span>RS256 against the team's keys; fails closed unless turned off.</span></li>
+					<li><i>4</i><b>Session</b><span>Opaque cookie; only its hash is stored in D1.</span></li>
+					<li><i>5</i><b>Route</b><span><code>requireUser</code> or <code>requireAdmin</code>, then load or action.</span></li>
+				</ol>
+			</div>
+
+			<div class="box" style="left: 900px; top: 64px; width: 310px; height: 376px">
+				<h2>
+					<svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.5" /><path d="M4.5 5.5v13c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5v-13M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5" /></svg>
+					D1 database
+				</h2>
+				<p>Cloudflare's SQLite database, in your own account.</p>
+				<ul>
+					<li>HR fields stored as ciphertext</li>
+					<li>Projects, tasks, labels, milestones</li>
+					<li>Knowledge-base pages and revisions</li>
+					<li>Comments and notifications</li>
+					<li>People, time off, HR audit log</li>
+					<li>Users, invites, hashed sessions</li>
+					<li>FTS5 search: <code>pages_fts</code>, <code>tasks_fts</code></li>
+					<li>Numbered SQL migrations in <code>migrations/</code></li>
+				</ul>
+			</div>
+
+			<div class="box" style="left: 900px; top: 476px; width: 310px; height: 200px">
+				<h2>
+					<svg class="icon" viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z" /><path d="M4 7.5 12 12l8-4.5M12 12v9" /></svg>
+					R2 bucket
+				</h2>
+				<p>Attachments, up to 25 MB each. A private bucket: files are served only through the Worker, to signed-in people.</p>
+				<p>Object keys come from the server, never from file names.</p>
+			</div>
+
+			<div class="legend">
+				<div><s></s>Requests and data</div>
+				<div><s class="cipher"></s>Encrypted HR fields</div>
+			</div>
+		</div>
+	</body>
+</html>

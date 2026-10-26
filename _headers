@@ -1,0 +1,4 @@
+# SvelteKit polls this file to learn that a new version is deployed: no browser or shared cache may keep it.
+/_app/version.json
+  ! Cache-Control
+  Cache-Control: no-store
