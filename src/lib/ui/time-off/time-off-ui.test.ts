@@ -6,11 +6,18 @@ vi.mock('$app/forms', () => ({ enhance: () => ({}) }));
 const { default: BalanceCards } = await import('./BalanceCards.svelte');
 const { default: RequestList } = await import('./RequestList.svelte');
 
+/** `text` with `pattern` replaced until nothing matches (one pass can leave a new match behind). */
+const replaceAll = (text: string, pattern: RegExp, by: string) => {
+	for (let previous = ''; previous !== text;) {
+		previous = text;
+		text = text.replace(pattern, by);
+	}
+	return text;
+};
+
 /** The visible text of rendered HTML: tags and hydration comments removed, entities decoded, spaces collapsed. */
 const textOf = (html: string) =>
-	html
-		.replace(/<!--[^]*?-->/g, '')
-		.replace(/<[^>]+>/g, ' ')
+	replaceAll(replaceAll(html, /<!--[^]*?-->/g, ''), /<[^>]+>/g, ' ')
 		.replace(/&lt;/g, '<')
 		.replace(/&gt;/g, '>')
 		.replace(/&amp;/g, '&')
