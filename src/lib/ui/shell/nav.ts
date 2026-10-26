@@ -23,6 +23,8 @@ export interface NavSection {
 
 const HOME: NavItem = { href: '/', label: 'Home', icon: 'home' };
 const MY_TASKS: NavItem = { href: '/my-tasks', label: 'My tasks', icon: 'tasks' };
+/** RB-12: every open issue across projects. On a phone it is the first destination under More (owner decision O8). */
+const ISSUES: NavItem = { href: '/issues', label: 'Issues', icon: 'issues' };
 const PROJECTS: NavItem = { href: '/projects', label: 'Projects', icon: 'projects' };
 const KB: NavItem = { href: '/kb', label: 'Knowledge base', short: 'KB', icon: 'book' };
 const PEOPLE: NavItem = { href: '/people', label: 'People', icon: 'people' };
@@ -32,12 +34,23 @@ const CALENDAR: NavItem = { href: '/calendar', label: 'Calendar', icon: 'calenda
 
 /** The sidebar's groups: daily work first, then the team. */
 export const NAV_SECTIONS: NavSection[] = [
-	{ items: [HOME, MY_TASKS, PROJECTS, CALENDAR, KB] },
+	{ items: [HOME, MY_TASKS, ISSUES, PROJECTS, CALENDAR, KB] },
 	{ label: 'Team', items: [PEOPLE, TIME_OFF] }
 ];
 
 /** The four destinations of the phone tab bar, in order; the rest live under "More". */
 export const TAB_ITEMS: NavItem[] = [HOME, MY_TASKS, PROJECTS, KB];
+
+/**
+ * RB-12: the quick Report an issue form. Not a sidebar row: an icon button in the sidebar head next to Search and
+ * Notifications, and the first row of the phone More sheet.
+ */
+export const REPORT_ISSUE: NavItem = {
+	href: '/issues/new',
+	label: 'Report an issue',
+	short: 'Report',
+	icon: 'plus'
+};
 
 /** Icon buttons next to the brand (sidebar) and in the phone top bar. */
 export const SEARCH: NavItem = { href: '/search', label: 'Search', icon: 'search' };
@@ -57,10 +70,14 @@ export const ACCOUNT: NavItem = { href: '/account', label: 'Account', icon: 'use
 
 export const visibleTo = (isAdmin: boolean) => (item: NavItem) => !item.adminOnly || isAdmin;
 
-/** What the phone More sheet lists: every destination the tab bar does not show, in sidebar order. */
+/**
+ * What the phone More sheet lists: Report an issue first, then every destination the tab bar does not show, in
+ * sidebar order.
+ */
 export function moreItems(isAdmin: boolean): NavItem[] {
 	const inTabs = new Set(TAB_ITEMS.map((item) => item.href));
 	return [
+		REPORT_ISSUE,
 		...NAV_SECTIONS.flatMap((section) => section.items).filter((item) => !inTabs.has(item.href)),
 		SEARCH,
 		NOTIFICATIONS,

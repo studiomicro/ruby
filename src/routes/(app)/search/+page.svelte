@@ -11,6 +11,7 @@
 	import Select from '#lib/ui/kit/Select.svelte';
 	import TextField from '#lib/ui/kit/TextField.svelte';
 	import Highlighted from './Highlighted.svelte';
+	import TypeBadge from '#lib/ui/issues/TypeBadge.svelte';
 
 	let { data } = $props();
 
@@ -76,6 +77,7 @@
 							<Highlighted segments={task.title} /></a
 						>
 						<span class="context">
+							<TypeBadge type={task.type} />
 							<Badge>{TASK_STATUS_LABELS[task.status]}</Badge>
 							{#if task.archived}<Badge tone="warning">Archived</Badge>{/if}
 							<LocalTime at={task.updatedAt} />
@@ -133,6 +135,7 @@
 									<Highlighted segments={hit.title} /></a
 								>
 								<span class="context">
+									<TypeBadge type={hit.type} />
 									<Badge>{TASK_STATUS_LABELS[hit.status]}</Badge>
 									{#if hit.archived}<Badge tone="warning">Archived</Badge>{/if}
 									<LocalTime at={hit.updatedAt} />

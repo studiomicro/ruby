@@ -3,7 +3,7 @@
 	priority are checkbox groups (OR inside a group, AND across groups); none ticked means all. Inside a <details>
 	so a phone shows one row until it is opened (the summary counts the active filters). The element owns its open
 	state: an early tap before hydration is never undone. RB-08: labels (OR inside the set) and milestone (`none`: no
-	milestone) when the project has any.
+	milestone) when the project has any. RB-12: team labels as their own group, in the same `label` filter.
 -->
 <script lang="ts">
 	import {
@@ -26,6 +26,7 @@
 		sort,
 		users,
 		labels = [],
+		teamLabels = [],
 		milestones = []
 	}: {
 		action: string;
@@ -40,6 +41,7 @@
 		sort: { sort: string; dir: string };
 		users: readonly UserOption[];
 		labels?: readonly { id: string; name: string; color: LabelColor }[];
+		teamLabels?: readonly { id: string; name: string; color: LabelColor }[];
 		milestones?: readonly { id: string; name: string; status: string }[];
 	} = $props();
 
@@ -129,9 +131,26 @@
 				{/each}
 			</div>
 		</fieldset>
+		{#if teamLabels.length > 0}
+			<fieldset>
+				<legend>Team labels</legend>
+				<div class="checks">
+					{#each teamLabels as l (l.id)}
+						<label class="check"
+							><input
+								type="checkbox"
+								name="label"
+								value={l.id}
+								checked={labelFilter.includes(l.id)}
+							/><LabelChip name={l.name} color={l.color} scope="team" /></label
+						>
+					{/each}
+				</div>
+			</fieldset>
+		{/if}
 		{#if labels.length > 0}
 			<fieldset>
-				<legend>Labels</legend>
+				<legend>{teamLabels.length > 0 ? 'Project labels' : 'Labels'}</legend>
 				<div class="checks">
 					{#each labels as l (l.id)}
 						<label class="check"

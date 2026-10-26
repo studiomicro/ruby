@@ -15,7 +15,8 @@
 		TASK_STATUS_LABELS,
 		type LabelColor,
 		type TaskPriority,
-		type TaskStatus
+		type TaskStatus,
+		type TaskType
 	} from '#lib/shared/enums';
 	import Avatar from '#lib/ui/kit/Avatar.svelte';
 	import Button from '#lib/ui/kit/Button.svelte';
@@ -25,6 +26,7 @@
 	import Priority from './Priority.svelte';
 	import ChecklistProgress from '#lib/ui/pm/ChecklistProgress.svelte';
 	import LabelChip from '#lib/ui/pm/LabelChip.svelte';
+	import TypeBadge from '#lib/ui/issues/TypeBadge.svelte';
 
 	type Card = {
 		id: string;
@@ -35,8 +37,10 @@
 		assigneeId: string | null;
 		assigneeName: string | null;
 		dueOn: string | null;
-		labels?: { id: string; name: string; color: LabelColor }[];
+		labels?: { id: string; name: string; color: LabelColor; scope?: 'project' | 'team' }[];
 		checklist?: { done: number; total: number } | null;
+		/** RB-12: a badge for every type except the quiet default `task`. */
+		type?: TaskType;
 	};
 	type Column = { status: TaskStatus; count: number; tasks: Card[] };
 	type Setting = {
@@ -397,11 +401,13 @@
 						<a class="title" href="/projects/{projectKey}/tasks/{card.number}"
 							><span class="title-text">{card.title}</span></a
 						>
+						{#if card.type}<TypeBadge type={card.type} quiet />{/if}
 						{#if card.labels && card.labels.length > 0}
 							<div class="labels">
 								{#each card.labels as label (label.id)}<LabelChip
 										name={label.name}
 										color={label.color}
+										scope={label.scope}
 									/>{/each}
 							</div>
 						{/if}

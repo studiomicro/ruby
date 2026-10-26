@@ -74,6 +74,7 @@
 	sort={data.sort}
 	users={data.users}
 	labels={data.labels}
+	teamLabels={data.teamLabels}
 	milestones={data.milestones}
 />
 
@@ -135,6 +136,7 @@
 				users={data.users}
 				milestones={data.milestones}
 				labels={data.labels}
+				teamLabels={data.teamLabels}
 				answer={answerFor(form, 'bulk')}
 			/>
 		{/if}

@@ -6,6 +6,7 @@
 	import TextField from '#lib/ui/kit/TextField.svelte';
 	import DescriptionField from '#lib/ui/tasks/DescriptionField.svelte';
 	import { PRIORITY_OPTIONS, STATUS_OPTIONS, peopleOptions } from '#lib/ui/tasks/options';
+	import { TYPE_OPTIONS } from '#lib/ui/issues/options';
 
 	let { data, form } = $props();
 	let saving = $state(false);
@@ -48,6 +49,13 @@
 			error={errors.description}
 		/>
 		<div class="grid">
+			<Select
+				label="Type"
+				name="type"
+				options={TYPE_OPTIONS}
+				value={values.type ?? data.type}
+				error={errors.type}
+			/>
 			<Select
 				label="Status"
 				name="status"

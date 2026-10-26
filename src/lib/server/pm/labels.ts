@@ -3,19 +3,21 @@ import type { LabelColor } from '#lib/shared/enums';
 import type { SessionUser } from '../auth/session';
 import type { Db } from '../db';
 import { batchAssert, isBatchAssertFailure } from '../db/assert';
-import { labels, taskLabels } from '../db/schema';
+import { labels, taskLabels, taskTeamLabels, teamLabels } from '../db/schema';
 import { projectActive } from '../tasks/repo';
 import { isUniqueViolation, newId } from '../util';
 import {
 	holds,
+	inTaskIds,
 	liveTask,
 	managerRefusal,
 	mayManageProject,
 	projectRefusal,
 	type Manager,
-	type PmWrite
+	type PmWrite,
+	type TaskIdSet
 } from './common';
-import { PM_LIMITS, PM_MESSAGES, type LabelInput } from './validation';
+import { PM_LIMITS, PM_MESSAGES, type LabelInput, type LabelSets } from './validation';
 
 /**
  * Labels of a project (RB-08). Writes are single guarded statements: the project must be active when they run, the
@@ -197,27 +199,31 @@ export async function deleteLabel(
 }
 
 /**
- * Replaces a task's label set (at most PM_LIMITS.labelsPerTask, checked by the parser) in one batch: an assertion
- * that the task is live, the project active and every id a live label of this project, then the unlinks and the
- * links. Any refusal rolls the whole batch back. Last write wins between two tabs (a tag set has no merge); the
- * task's `updated_at` is not touched (owner decision 8).
+ * Replaces a task's two label sets (project and team labels; RB-12 D4: at most PM_LIMITS.labelsPerTask together) in
+ * one batch: an assertion that the task is live, the project active, every project id a live label of this project
+ * and every team id a live team label, then the unlinks of both tables and the links. Any refusal rolls the whole
+ * batch back. Last write wins between two tabs (a tag set has no merge); the task's `updated_at` is not touched
+ * (owner decision 8).
  */
 export async function setTaskLabels(
 	db: Db,
 	projectId: string,
 	taskId: string,
-	labelIds: string[],
+	sets: LabelSets,
 	at: number
 ): Promise<PmWrite> {
-	if (labelIds.length > PM_LIMITS.labelsPerTask)
+	const { labelIds, teamLabelIds } = sets;
+	if (labelIds.length + teamLabelIds.length > PM_LIMITS.labelsPerTask)
 		return { ok: false, reason: 'limit', message: PM_MESSAGES.labelsPerTask };
 	const ids = JSON.stringify(labelIds);
+	const teamIds = JSON.stringify(teamLabelIds);
 	const matching = sql`(select count(*) from labels l where l.id in (select value from json_each(${ids})) and l.project_id = ${projectId} and l.deleted_at is null)`;
+	const matchingTeam = sql`(select count(*) from team_labels tl where tl.id in (select value from json_each(${teamIds})) and tl.deleted_at is null)`;
 	try {
 		await db.batch([
 			batchAssert(
 				db,
-				sql`${liveTask(projectId, taskId)} and ${projectActive(projectId)} and ${matching} = ${labelIds.length}`
+				sql`${liveTask(projectId, taskId)} and ${projectActive(projectId)} and ${matching} = ${labelIds.length} and ${matchingTeam} = ${teamLabelIds.length}`
 			),
 			db
 				.delete(taskLabels)
@@ -225,6 +231,14 @@ export async function setTaskLabels(
 					and(
 						eq(taskLabels.taskId, taskId),
 						sql`${taskLabels.labelId} not in (select value from json_each(${ids}))`
+					)
+				),
+			db
+				.delete(taskTeamLabels)
+				.where(
+					and(
+						eq(taskTeamLabels.taskId, taskId),
+						sql`${taskTeamLabels.teamLabelId} not in (select value from json_each(${teamIds}))`
 					)
 				),
 			db
@@ -245,6 +259,24 @@ export async function setTaskLabels(
 							)
 						)
 				)
+				.onConflictDoNothing(),
+			db
+				.insert(taskTeamLabels)
+				.select(
+					db
+						.select({
+							taskId: sql`${taskId}`.as('taskId'),
+							teamLabelId: teamLabels.id,
+							createdAt: sql`${at}`.as('createdAt')
+						})
+						.from(teamLabels)
+						.where(
+							and(
+								sql`${teamLabels.id} in (select value from json_each(${teamIds}))`,
+								isNull(teamLabels.deletedAt)
+							)
+						)
+				)
 				.onConflictDoNothing()
 		]);
 		return { ok: true };
@@ -252,22 +284,26 @@ export async function setTaskLabels(
 		if (!isBatchAssertFailure(e)) throw e;
 	}
 	if (!(await holds(db, liveTask(projectId, taskId)))) return { ok: false, reason: 'not_found' };
-	return (
-		(await projectRefusal(db, projectId)) ?? {
-			ok: false,
-			reason: 'invalid',
-			message: PM_MESSAGES.labelUnknown
-		}
-	);
+	const refused = await projectRefusal(db, projectId);
+	if (refused) return refused;
+	if (!(await holds(db, sql`${matching} = ${labelIds.length}`)))
+		return { ok: false, reason: 'invalid', message: PM_MESSAGES.labelUnknown };
+	return { ok: false, reason: 'invalid', message: PM_MESSAGES.teamLabelUnknown };
 }
 
-export type TaskLabel = { id: string; name: string; color: LabelColor };
+/** A label chip: `scope` says whether it is the task's project label or a team label (RB-12). */
+export type TaskLabel = {
+	id: string;
+	name: string;
+	color: LabelColor;
+	scope: 'project' | 'team';
+};
 
 /**
  * The live labels of the given tasks, by name; the ids are bound once as JSON (D1's 100-parameter limit) and a
  * label counts only on a task of its own project. A batch item: run it with the other per-task lookups.
  */
-export function labelsForTasksQuery(db: Db, taskIds: readonly string[]) {
+export function labelsForTasksQuery(db: Db, taskIds: TaskIdSet) {
 	return db
 		.select({ taskId: taskLabels.taskId, id: labels.id, name: labels.name, color: labels.color })
 		.from(taskLabels)
@@ -276,11 +312,6 @@ export function labelsForTasksQuery(db: Db, taskIds: readonly string[]) {
 			sql`tasks t`,
 			sql`t.id = ${taskLabels.taskId} and t.project_id = ${labels.projectId}`
 		)
-		.where(
-			and(
-				sql`${taskLabels.taskId} in (select value from json_each(${JSON.stringify(taskIds)}))`,
-				isNull(labels.deletedAt)
-			)
-		)
+		.where(and(inTaskIds(taskLabels.taskId, taskIds), isNull(labels.deletedAt)))
 		.orderBy(asc(labels.nameKey));
 }

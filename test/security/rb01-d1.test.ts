@@ -411,7 +411,8 @@ describe('optimistic concurrency and races', () => {
 						priority: 'none',
 						assigneeId: null,
 						dueOn: null,
-						milestoneId: null
+						milestoneId: null,
+						type: 'task'
 					},
 					Date.now()
 				)

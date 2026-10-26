@@ -1,5 +1,6 @@
 import { TASK_PRIORITIES, TASK_STATUSES, type ViewKind } from '#lib/shared/enums';
 import { isUuid, SORT_DIRS, TASK_SORTS } from '../tasks/validation';
+import { issueQuery, parseIssueParams } from '../issues/filters';
 import { PM_LIMITS } from './validation';
 
 /**
@@ -7,8 +8,17 @@ import { PM_LIMITS } from './validation';
  * `milestone`, `sort`, `dir`, `view`), each with a validated value, in a fixed order. Unknown keys and invalid values
  * are dropped (`x=<script>`, `sort=;drop`). The board ignores sort, so a board view keeps none. Null when the
  * result is longer than PM_LIMITS.viewQueryMax characters. Pure: a saved view's `query` is only ever this output.
+ *
+ * RB-12 `issues`: the Issues page's own whitelist (type, status, priority, label, assignee, reporter, project,
+ * milestone, the four date bounds, archived, sort, dir; never page), parsed by the page's parser and written in its
+ * fixed order; null beyond PM_LIMITS.issueViewQueryMax.
  */
 export function canonicalizeQuery(kind: ViewKind, raw: URLSearchParams): string | null {
+	if (kind === 'issues') {
+		const { filters, sort } = parseIssueParams(raw);
+		const out = issueQuery(filters, sort).toString();
+		return out.length > PM_LIMITS.issueViewQueryMax ? null : out;
+	}
 	const q = new URLSearchParams();
 	if (kind === 'board') q.set('view', 'board');
 	const keep = (key: string, allowed: (v: string) => boolean, map = (v: string) => v) => {

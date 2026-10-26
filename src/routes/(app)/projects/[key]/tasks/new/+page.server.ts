@@ -1,5 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { TASK_STATUSES, type TaskStatus } from '#lib/shared/enums';
+import { TASK_STATUSES, TASK_TYPES, type TaskStatus, type TaskType } from '#lib/shared/enums';
 import { listActiveUsers } from '#lib/server/auth/users';
 import { readFormBody, textField } from '#lib/server/forms';
 import { requireUser } from '#lib/server/guards';
@@ -17,7 +17,8 @@ const DEFAULTS = {
 	priority: 'none',
 	assigneeId: null,
 	dueOn: null,
-	milestoneId: null
+	milestoneId: null,
+	type: 'task'
 } as const;
 
 export const load: PageServerLoad = async (event) => {
@@ -27,8 +28,13 @@ export const load: PageServerLoad = async (event) => {
 	const status: TaskStatus = (TASK_STATUSES as readonly string[]).includes(preset)
 		? (preset as TaskStatus)
 		: 'todo';
+	// RB-12: `?type=bug` presets the type (default Task).
+	const typePreset = event.url.searchParams.get('type') ?? '';
+	const type: TaskType = (TASK_TYPES as readonly string[]).includes(typePreset)
+		? (typePreset as TaskType)
+		: 'task';
 	const users = await listActiveUsers(event.locals.db);
-	return { status, users: users.map((u) => ({ id: u.id, name: u.name })), selfId: user.id };
+	return { status, type, users: users.map((u) => ({ id: u.id, name: u.name })), selfId: user.id };
 };
 
 export const actions: Actions = {
@@ -37,7 +43,7 @@ export const actions: Actions = {
 		const { user, project } = await projectFromParams(event);
 		const form = await readFormBody(event.request, LIMITS.formBodyMax);
 		const values = Object.fromEntries(
-			['title', 'description', 'status', 'priority', 'assigneeId', 'dueOn'].map((n) => [
+			['title', 'description', 'type', 'status', 'priority', 'assigneeId', 'dueOn'].map((n) => [
 				n,
 				textField(form, n).slice(0, LIMITS.descriptionMax + 1)
 			])

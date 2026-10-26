@@ -2,9 +2,11 @@ import {
 	LABEL_COLORS,
 	TASK_PRIORITIES,
 	TASK_STATUSES,
+	TASK_TYPES,
 	type LabelColor,
 	type TaskPriority,
-	type TaskStatus
+	type TaskStatus,
+	type TaskType
 } from '#lib/shared/enums';
 import { textField } from '../forms';
 import { isValidDueOn } from '../tasks/dates';
@@ -33,7 +35,11 @@ export const PM_LIMITS = {
 	viewQueryMax: 500,
 	bulkMax: 100,
 	/** `assigned` notifications one bulk request writes at most (one recipient per request; red team L2). */
-	bulkNotifyMax: 10
+	bulkNotifyMax: 10,
+	/** RB-12: live team labels (workspace-wide, admins manage them). */
+	teamLabelsMax: 100,
+	/** RB-12: stored query of an Issues view (more keys than a project view; worst case about 900). */
+	issueViewQueryMax: 1000
 } as const;
 
 export const PM_MESSAGES = {
@@ -44,6 +50,10 @@ export const PM_MESSAGES = {
 	labelLimit: `A project can have up to ${PM_LIMITS.labelsPerProject} labels.`,
 	labelsPerTask: `A task can have up to ${PM_LIMITS.labelsPerTask} labels.`,
 	labelUnknown: 'Choose labels of this project.',
+	teamLabelTaken: 'That label already exists.',
+	teamLabelLimit: `The team can have up to ${PM_LIMITS.teamLabelsMax} team labels.`,
+	teamLabelUnknown: 'Choose a team label that still exists.',
+	notAdmin: 'Only admins can change team labels.',
 	checkText: 'Enter the step.',
 	checkTextTooLong: `Keep a step to ${PM_LIMITS.checklistTextMax} characters.`,
 	checkLimit: `A task can have up to ${PM_LIMITS.checklistPerTask} steps.`,
@@ -59,6 +69,7 @@ export const PM_MESSAGES = {
 	viewNameTooLong: `Keep the name to ${PM_LIMITS.viewNameMax} characters.`,
 	viewTaken: 'You already have a view with that name.',
 	viewLimit: `You can save up to ${PM_LIMITS.viewsPerUserProject} views per project.`,
+	issueViewLimit: `You can save up to ${PM_LIMITS.viewsPerUserProject} issue views.`,
 	viewTooLong: 'Too many filters to save in one view. Remove a few and try again.',
 	bulkNone: 'Select at least one task.',
 	bulkTooMany: `Select at most ${PM_LIMITS.bulkMax} tasks at once.`,
@@ -115,17 +126,34 @@ export function idField(form: FormData, name: string): string | null {
 export const expectedField = (form: FormData): number | null =>
 	parseExpected(textField(form, 'expectedUpdatedAt'));
 
-/** The label set of a task's labels form: distinct uuids, at most PM_LIMITS.labelsPerTask. */
-export function parseLabelIds(
+/** A task's two label sets (RB-12): project labels and team labels, replaced together. */
+export interface LabelSets {
+	labelIds: string[];
+	teamLabelIds: string[];
+}
+
+/**
+ * The label sets of a task's labels form (`labelId` project labels, `teamLabelId` team labels): distinct uuids, at
+ * most PM_LIMITS.labelsPerTask in total (owner decision O6: project and team labels count together).
+ */
+export function parseLabelSets(
 	form: FormData
-): { ok: true; value: string[] } | { ok: false; error: string } {
-	const raw = form.getAll('labelId').filter((v): v is string => typeof v === 'string');
-	if (raw.length > PM_LIMITS.labelsPerTask * 4)
+): { ok: true; value: LabelSets } | { ok: false; error: string } {
+	const read = (name: string) =>
+		form.getAll(name).filter((v): v is string => typeof v === 'string');
+	const rawProject = read('labelId');
+	const rawTeam = read('teamLabelId');
+	if (rawProject.length + rawTeam.length > PM_LIMITS.labelsPerTask * 4)
 		return { ok: false, error: PM_MESSAGES.labelsPerTask };
-	if (!raw.every((v) => isUuid(v.trim()))) return { ok: false, error: PM_MESSAGES.labelUnknown };
-	const ids = [...new Set(raw.map((v) => v.trim().toLowerCase()))];
-	if (ids.length > PM_LIMITS.labelsPerTask) return { ok: false, error: PM_MESSAGES.labelsPerTask };
-	return { ok: true, value: ids };
+	if (!rawProject.every((v) => isUuid(v.trim())))
+		return { ok: false, error: PM_MESSAGES.labelUnknown };
+	if (!rawTeam.every((v) => isUuid(v.trim())))
+		return { ok: false, error: PM_MESSAGES.teamLabelUnknown };
+	const distinct = (raw: string[]) => [...new Set(raw.map((v) => v.trim().toLowerCase()))];
+	const value = { labelIds: distinct(rawProject), teamLabelIds: distinct(rawTeam) };
+	if (value.labelIds.length + value.teamLabelIds.length > PM_LIMITS.labelsPerTask)
+		return { ok: false, error: PM_MESSAGES.labelsPerTask };
+	return { ok: true, value };
 }
 
 export function parseCheckText(raw: string): Line {
@@ -217,20 +245,41 @@ export function parseViewName(raw: string): Line {
 export interface BulkChanges {
 	status?: TaskStatus;
 	priority?: TaskPriority;
+	/** RB-12. */
+	type?: TaskType;
 	assigneeId?: string | null;
 	milestoneId?: string | null;
 	dueOn?: string | null;
 	addLabelId?: string;
 	removeLabelId?: string;
+	/** RB-12: team labels (any project). */
+	addTeamLabelId?: string;
+	removeTeamLabelId?: string;
 }
 export type BulkField = keyof BulkChanges;
+
+/**
+ * The fields the cross-project Issues bulk bar may change (RB-12 D6, owner decision O10): milestones and project
+ * labels belong to one project, so they stay in the project list's bulk bar.
+ */
+export const ISSUE_BULK_FIELDS: readonly BulkField[] = [
+	'status',
+	'priority',
+	'type',
+	'assigneeId',
+	'dueOn',
+	'addTeamLabelId',
+	'removeTeamLabelId'
+];
 
 /**
  * The bulk form: `taskId` (repeated, 1-100 distinct uuids) and the change selects. An empty select means "no
  * change"; `none` clears an assignee or milestone; the `clearDue` checkbox clears the due date.
  */
 export function parseBulk(
-	form: FormData
+	form: FormData,
+	/** The fields this bulk bar may change (RB-12: the Issues bar has fewer); another one posted is refused. */
+	allowed: readonly BulkField[] | null = null
 ):
 	| { ok: true; taskIds: string[]; changes: BulkChanges }
 	| { ok: false; errors: Partial<Record<BulkField | 'form', string>> } {
@@ -255,6 +304,11 @@ export function parseBulk(
 			changes.priority = priority as TaskPriority;
 		else errors.priority = 'Choose a priority.';
 	}
+	const type = textField(form, 'type');
+	if (type !== '') {
+		if ((TASK_TYPES as readonly string[]).includes(type)) changes.type = type as TaskType;
+		else errors.type = 'Choose a type.';
+	}
 	const ref = (name: 'assigneeId' | 'milestoneId', message: string) => {
 		const v = textField(form, name).trim();
 		if (v === '') return;
@@ -272,11 +326,19 @@ export function parseBulk(
 			else errors.dueOn = PM_MESSAGES.dueOn;
 		}
 	}
-	for (const name of ['addLabelId', 'removeLabelId'] as const) {
+	for (const name of [
+		'addLabelId',
+		'removeLabelId',
+		'addTeamLabelId',
+		'removeTeamLabelId'
+	] as const) {
 		const v = textField(form, name).trim();
 		if (v === '') continue;
 		if (isUuid(v)) changes[name] = v.toLowerCase();
-		else errors[name] = PM_MESSAGES.labelUnknown;
+		else
+			errors[name] = name.includes('Team')
+				? PM_MESSAGES.teamLabelUnknown
+				: PM_MESSAGES.labelUnknown;
 	}
 	if (
 		changes.addLabelId !== undefined &&
@@ -284,6 +346,18 @@ export function parseBulk(
 		!errors.addLabelId
 	)
 		errors.removeLabelId = 'Add and remove a different label.';
+	if (
+		changes.addTeamLabelId !== undefined &&
+		changes.addTeamLabelId === changes.removeTeamLabelId &&
+		!errors.addTeamLabelId
+	)
+		errors.removeTeamLabelId = 'Add and remove a different label.';
+	if (allowed)
+		for (const name of Object.keys(changes) as BulkField[])
+			if (!allowed.includes(name)) {
+				delete changes[name];
+				errors.form = 'Milestones and project labels can only be changed inside one project.';
+			}
 	if (Object.keys(errors).length === 0 && Object.keys(changes).length === 0)
 		errors.form = PM_MESSAGES.bulkNoChange;
 	if (Object.keys(errors).length > 0) return { ok: false, errors };

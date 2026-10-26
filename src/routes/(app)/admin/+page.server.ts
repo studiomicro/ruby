@@ -1,9 +1,8 @@
-import { redirect } from '@sveltejs/kit';
 import { requireAdmin } from '#lib/server/guards';
 import type { PageServerLoad } from './$types';
 
-/** `/admin` has one section for now: user management. */
+/** `/admin`: the hub of the admin pages (users, team labels, attachment retention). */
 export const load: PageServerLoad = (event) => {
 	requireAdmin(event);
-	redirect(303, '/admin/users');
+	return {};
 };

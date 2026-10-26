@@ -9,8 +9,12 @@ import { PM_LIMITS, PM_MESSAGES } from './validation';
 
 /**
  * Personal saved views (RB-08, owner decision 6): visible to their creator only. Every read and write names the
- * owner in its WHERE clause, so another user's view id is "not found". The unique partial index decides a duplicate
- * name; the 20-per-project cap is a count inside the INSERT. `query` comes only from canonicalizeQuery.
+ * owner in its WHERE clause, so another user's view id is "not found". The unique partial indexes decide a duplicate
+ * name; the 20-per-scope cap is a count inside the INSERT. `query` comes only from canonicalizeQuery.
+ *
+ * RB-12: one table and one code path for two scopes. `projectId` names a project (its `list` and `board` views), or
+ * is null for the cross-project Issues views (`kind = 'issues'`, no project). Every statement filters by the scope,
+ * so a project route never sees an Issues view and the Issues route never sees a project view.
  */
 
 export interface SavedView {
@@ -20,6 +24,14 @@ export interface SavedView {
 	query: string;
 }
 
+/** SQL: the row belongs to the scope (a project's views, or the Issues views when `projectId` is null). */
+const inScope = (projectId: string | null) =>
+	projectId === null
+		? and(isNull(savedViews.projectId), eq(savedViews.kind, 'issues'))
+		: eq(savedViews.projectId, projectId);
+const scopeSql = (projectId: string | null) =>
+	projectId === null ? sql`v.project_id is null` : sql`v.project_id = ${projectId}`;
+
 const columns = {
 	id: savedViews.id,
 	name: savedViews.name,
@@ -27,26 +39,29 @@ const columns = {
 	query: savedViews.query
 };
 
-export async function listViews(db: Db, userId: string, projectId: string): Promise<SavedView[]> {
+/** The user's live views of the scope by name. A batch item or awaited alone. */
+export function listViewsQuery(db: Db, userId: string, projectId: string | null) {
 	return db
 		.select(columns)
 		.from(savedViews)
-		.where(
-			and(
-				eq(savedViews.userId, userId),
-				eq(savedViews.projectId, projectId),
-				isNull(savedViews.deletedAt)
-			)
-		)
+		.where(and(eq(savedViews.userId, userId), inScope(projectId), isNull(savedViews.deletedAt)))
 		.orderBy(asc(savedViews.name))
 		.limit(PM_LIMITS.viewsPerUserProject * 2);
+}
+
+export async function listViews(
+	db: Db,
+	userId: string,
+	projectId: string | null
+): Promise<SavedView[]> {
+	return listViewsQuery(db, userId, projectId);
 }
 
 /** The user's own live view of the project, or null (someone else's id looks missing). */
 export async function getView(
 	db: Db,
 	userId: string,
-	projectId: string,
+	projectId: string | null,
 	id: string
 ): Promise<SavedView | null> {
 	const row = await db
@@ -56,7 +71,7 @@ export async function getView(
 			and(
 				eq(savedViews.id, id),
 				eq(savedViews.userId, userId),
-				eq(savedViews.projectId, projectId),
+				inScope(projectId),
 				isNull(savedViews.deletedAt)
 			)
 		)
@@ -67,10 +82,13 @@ export async function getView(
 export async function saveView(
 	db: Db,
 	userId: string,
-	projectId: string,
+	projectId: string | null,
 	input: { name: string; kind: ViewKind; query: string },
 	at: number
 ): Promise<PmWrite<{ id: string }>> {
+	// The scope decides the kind: an Issues view is `issues`, a project view never is (the table CHECK agrees).
+	if ((projectId === null) !== (input.kind === 'issues'))
+		return { ok: false, reason: 'invalid', message: PM_MESSAGES.stale };
 	const id = newId();
 	try {
 		const rows = await db
@@ -91,8 +109,8 @@ export async function saveView(
 					.from(sql`(select 1)`)
 					.where(
 						and(
-							projectActive(projectId),
-							sql`(select count(*) from saved_views v where v.user_id = ${userId} and v.project_id = ${projectId} and v.deleted_at is null) < ${PM_LIMITS.viewsPerUserProject}`
+							projectId === null ? undefined : projectActive(projectId),
+							sql`(select count(*) from saved_views v where v.user_id = ${userId} and ${scopeSql(projectId)} and v.deleted_at is null) < ${PM_LIMITS.viewsPerUserProject}`
 						)
 					)
 			)
@@ -103,6 +121,8 @@ export async function saveView(
 			return { ok: false, reason: 'duplicate', message: PM_MESSAGES.viewTaken };
 		throw e;
 	}
+	if (projectId === null)
+		return { ok: false, reason: 'limit', message: PM_MESSAGES.issueViewLimit };
 	return (
 		(await projectRefusal(db, projectId)) ?? {
 			ok: false,
@@ -116,25 +136,29 @@ export async function saveView(
 export async function deleteView(
 	db: Db,
 	userId: string,
-	projectId: string,
+	projectId: string | null,
 	id: string,
 	at: number
 ): Promise<PmWrite> {
-	const mine = and(
-		eq(savedViews.id, id),
-		eq(savedViews.userId, userId),
-		eq(savedViews.projectId, projectId)
-	);
+	const mine = and(eq(savedViews.id, id), eq(savedViews.userId, userId), inScope(projectId));
 	const rows = await db
 		.update(savedViews)
 		.set({ deletedAt: at, updatedAt: at })
-		.where(and(mine, isNull(savedViews.deletedAt), projectActive(projectId)))
+		.where(
+			and(
+				mine,
+				isNull(savedViews.deletedAt),
+				projectId === null ? undefined : projectActive(projectId)
+			)
+		)
 		.returning({ id: savedViews.id });
 	if (rows.length === 1) return { ok: true };
 	const existed = await holds(
 		db,
-		sql`exists (select 1 from saved_views v where v.id = ${id} and v.user_id = ${userId} and v.project_id = ${projectId})`
+		sql`exists (select 1 from saved_views v where v.id = ${id} and v.user_id = ${userId} and ${scopeSql(projectId)})`
 	);
 	if (!existed) return { ok: false, reason: 'not_found' };
-	return (await projectRefusal(db, projectId)) ?? { ok: true };
+	return projectId === null
+		? { ok: true }
+		: ((await projectRefusal(db, projectId)) ?? { ok: true });
 }

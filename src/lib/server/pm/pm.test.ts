@@ -9,7 +9,7 @@ import {
 	parseCheckText,
 	parseColumns,
 	parseLabel,
-	parseLabelIds,
+	parseLabelSets,
 	parseMilestone,
 	parseWip,
 	PM_LIMITS
@@ -90,9 +90,9 @@ describe('labels', () => {
 			expect(parseLabel(formOf({ name: 'Bug', color })).ok).toBe(true);
 	});
 
-	it('a label set: distinct uuids, at most 10', () => {
+	it('a label set: distinct uuids, at most 10 project and team labels together', () => {
 		expect(
-			parseLabelIds(
+			parseLabelSets(
 				formOf([
 					['labelId', ID],
 					['labelId', ID.toUpperCase()]
@@ -100,16 +100,30 @@ describe('labels', () => {
 			)
 		).toEqual({
 			ok: true,
-			value: [ID]
+			value: { labelIds: [ID], teamLabelIds: [] }
 		});
-		expect(parseLabelIds(formOf([]))).toEqual({ ok: true, value: [] });
-		expect(parseLabelIds(formOf([['labelId', 'nope']])).ok).toBe(false);
+		expect(parseLabelSets(formOf([]))).toEqual({
+			ok: true,
+			value: { labelIds: [], teamLabelIds: [] }
+		});
+		expect(parseLabelSets(formOf([['labelId', 'nope']])).ok).toBe(false);
+		expect(parseLabelSets(formOf([['teamLabelId', 'nope']])).ok).toBe(false);
 		const ten = Array.from({ length: 10 }, (_, i) => ['labelId', uuid(i)] as [string, string]);
-		expect(parseLabelIds(formOf(ten)).ok).toBe(true);
+		expect(parseLabelSets(formOf(ten)).ok).toBe(true);
 		const eleven = [...ten, ['labelId', uuid(11)] as [string, string]];
-		expect(parseLabelIds(formOf(eleven))).toEqual({
+		expect(parseLabelSets(formOf(eleven))).toEqual({
 			ok: false,
 			error: 'A task can have up to 10 labels.'
+		});
+		// RB-12 D4: the cap counts both kinds.
+		const mixed = [
+			...ten.slice(0, 6),
+			...Array.from({ length: 5 }, (_, i) => ['teamLabelId', uuid(20 + i)] as [string, string])
+		];
+		expect(parseLabelSets(formOf(mixed)).ok).toBe(false);
+		expect(parseLabelSets(formOf(mixed.slice(1)))).toMatchObject({
+			ok: true,
+			value: { labelIds: ten.slice(1, 6).map((x) => x[1]) }
 		});
 	});
 });

@@ -44,6 +44,7 @@ export const taskDefaults = (overrides: Partial<TaskFields> = {}): TaskFields =>
 	assigneeId: null,
 	dueOn: null,
 	milestoneId: null,
+	type: 'task',
 	...overrides
 });
 
@@ -72,11 +73,13 @@ export async function assignedNotifications(db: Db, userId?: string) {
 	return userId ? rows.filter((r) => r.userId === userId) : rows;
 }
 
-/** Empties the RB-01 and RB-08 tables and the users (in foreign-key order). */
+/** Empties the RB-01, RB-08 and RB-12 tables and the users (in foreign-key order). */
 export async function clearAll(db: Db) {
 	for (const table of [
 		'notifications',
 		'task_labels',
+		'task_team_labels',
+		'team_labels',
 		'task_checklist_items',
 		'saved_views',
 		'project_columns',

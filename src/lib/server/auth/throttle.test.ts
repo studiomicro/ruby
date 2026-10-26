@@ -54,6 +54,7 @@ describe('every scope the features need exists', () => {
 				'hr-export',
 				'hr-reveal',
 				'invite-accept',
+				'issue-report',
 				'leave-request',
 				'mention-search',
 				'search',

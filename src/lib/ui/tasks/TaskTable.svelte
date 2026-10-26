@@ -5,7 +5,8 @@
 	so the bulk form works without JavaScript.
 -->
 <script lang="ts">
-	import type { LabelColor, TaskPriority, TaskStatus } from '#lib/shared/enums';
+	import type { LabelColor, TaskPriority, TaskStatus, TaskType } from '#lib/shared/enums';
+	import TypeBadge from '#lib/ui/issues/TypeBadge.svelte';
 	import ChecklistProgress from '#lib/ui/pm/ChecklistProgress.svelte';
 	import LabelChip from '#lib/ui/pm/LabelChip.svelte';
 	import Assignee from './Assignee.svelte';
@@ -24,7 +25,9 @@
 		dueOn: string | null;
 		milestoneId?: string | null;
 		milestoneName?: string | null;
-		labels?: { id: string; name: string; color: LabelColor }[];
+		labels?: { id: string; name: string; color: LabelColor; scope?: 'project' | 'team' }[];
+		/** RB-12: shown next to the title unless it is the quiet default `task`. */
+		type?: TaskType;
 		checklist?: { done: number; total: number } | null;
 	};
 	let {
@@ -79,7 +82,8 @@
 				<td class="title"
 					><a href="/projects/{projectKey}/tasks/{task.number}"
 						><span class="sr-only">{projectKey}-{task.number}: </span>{task.title}</a
-					></td
+					>{#if task.type && task.type !== 'task'}
+						<span class="type-badge"><TypeBadge type={task.type} /></span>{/if}</td
 				>
 				<td class="status"><StatusBadge status={task.status} /></td>
 				<td class="prio"><Priority priority={task.priority} /></td>
@@ -95,6 +99,7 @@
 					{#each task.labels ?? [] as label (label.id)}<LabelChip
 							name={label.name}
 							color={label.color}
+							scope={label.scope}
 						/>{/each}
 				</td>
 			</tr>
@@ -155,6 +160,11 @@
 		flex: 1 0 100%;
 		font-weight: 500;
 		overflow-wrap: anywhere;
+	}
+	.type-badge {
+		display: inline-flex;
+		margin-left: 6px;
+		vertical-align: middle;
 	}
 	.title a::after {
 		content: '';
