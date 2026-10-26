@@ -40,7 +40,11 @@
 	}
 </script>
 
-<PageHeader title="Users" description="Invite people, change roles and disable accounts." />
+<PageHeader title="Users" description="Invite people, change roles and disable accounts.">
+	{#snippet actions()}
+		<Button href="/admin/events" variant="ghost">Events of deactivated users</Button>
+	{/snippet}
+</PageHeader>
 
 <div class="layout">
 	<section class="panel" aria-labelledby="invite-heading">

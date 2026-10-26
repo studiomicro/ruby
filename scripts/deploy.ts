@@ -1,18 +1,5 @@
 /**
  * The production deploy (`npm run deploy`, docs/RUNBOOK.md › Routine deploy), the only way production changes.
- * Ruby has one environment, so there is no generated config: `wrangler.jsonc` is used as committed.
- *
- * Refuses to start while the D1 `database_id` is still the placeholder or the git working tree is not clean (every
- * deploy is a commit), or when package.json's version, `APP_VERSION` and the newest release notes disagree.
- * Then, stopping at the first failure:
- *   1. read the D1 Time Travel bookmark (`wrangler d1 time-travel info ruby`) and print it: the rollback point;
- *   2. apply remote migrations (`wrangler d1 migrations apply ruby --remote`);
- *   3. build (`vite build`);
- *   4. `wrangler deploy`.
- * `--dry-run` skips steps 1 and 2 (nothing remote is read or changed) and passes `--dry-run` to `wrangler deploy`.
- */
-/**
- * The production deploy (`npm run deploy`, docs/RUNBOOK.md › Routine deploy), the only way production changes.
  * The repository is public, so the committed `wrangler.jsonc` carries placeholders for the account id, the D1 id, the
  * app's custom domain and the Cloudflare Access settings. The real values come from the environment or, for any unset
  * there, from the gitignored `.deploy.env` (`.deploy.env.example` lists them). They are written into a temporary,
@@ -25,14 +12,16 @@
  *   1. read the D1 Time Travel bookmark (`wrangler d1 time-travel info ruby`) and print it: the rollback point;
  *   2. apply remote migrations (`wrangler d1 migrations apply ruby --remote`);
  *   3. build (`vite build`);
- *   4. `wrangler deploy`.
- * `--dry-run` skips steps 1 and 2 (nothing remote is read or changed) and passes `--dry-run` to `wrangler deploy`.
+ *   4. deploy the jobs Worker `ruby-jobs` (RB-09, `workers/jobs/wrangler.jsonc`): it works with the new schema right
+ *      after the migrations, and a failure here stops the deploy before the app ships;
+ *   5. deploy the app Worker.
+ * `--dry-run` skips steps 1 and 2 (nothing remote is read or changed) and passes `--dry-run` to both deploys.
  * `--write-config` only writes the generated config and keeps it (no wrangler call), for hand-run commands such as a
  * Time Travel restore, `wrangler secret put` or `wrangler rollback` (`-c wrangler.deploy.generated.jsonc`).
  * The generated files are also removed on SIGINT/SIGTERM and, when left over from an earlier killed run, at the start.
  *
- * Another Worker (RB-09's `workers/jobs/wrangler.jsonc`) joins by adding its path to `CONFIGS` and a `deploy(...)`
- * step to `buildSteps`; the renderer replaces only the placeholders a config contains.
+ * The jobs Worker must bind the very database the app migrates (same D1 id) and carry the same `APP_VERSION`. The
+ * renderer replaces only the placeholders a config contains.
  */
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -40,7 +29,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appVersionOf, parseReleases, versionProblems } from '../src/lib/shared/releases.ts';
 
-export const CONFIGS = ['wrangler.jsonc'] as const;
+export const CONFIGS = ['wrangler.jsonc', 'workers/jobs/wrangler.jsonc'] as const;
 export const DEPLOY_ENV_FILE = '.deploy.env';
 export const DATABASE = 'ruby';
 
@@ -63,8 +52,12 @@ export const ACCESS_VARS = {
 	RUBY_ACCESS_AUD: HEX64,
 	RUBY_ACCESS_DISABLED: /^1?$/
 } as const;
+/** RB-09 (optional): the verified Cloudflare Email Sending sender; unset keeps e-mail reminders off. */
+export const OPTIONAL_VARS = {
+	RUBY_REMINDER_EMAIL_FROM: /^[^\s@"\\]{1,64}@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i
+} as const;
 export type DeployValues = Record<keyof typeof DEPLOY_VARS, string> &
-	Partial<Record<keyof typeof ACCESS_VARS, string>>;
+	Partial<Record<keyof typeof ACCESS_VARS | keyof typeof OPTIONAL_VARS, string>>;
 
 const PLACEHOLDER_ACCOUNT = /"account_id"\s*:\s*"0{32}"/g;
 const PLACEHOLDER_D1 = /0{8}-0{4}-4000-8000-0{12}/g;
@@ -72,6 +65,9 @@ const PLACEHOLDER_HOST = 'ruby.example.invalid';
 const PLACEHOLDER_TEAM = 'team.example.invalid';
 const PLACEHOLDER_AUD = /"ACCESS_AUD"\s*:\s*"0{64}"/g;
 const ACCESS_DISABLED = /"ACCESS_DISABLED"\s*:\s*""/g;
+const REMINDER_EMAIL_FROM = /"REMINDER_EMAIL_FROM"\s*:\s*""/g;
+/** The jobs Worker's unrestricted Email Sending binding (red team L3: restricted to the sender once e-mail is on). */
+const SEND_EMAIL = /"send_email"\s*:\s*\[\s*\{\s*"name"\s*:\s*"EMAIL"\s*\}\s*\]/g;
 const REAL_D1 =
 	/"database_id"\s*:\s*"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"/;
 
@@ -125,18 +121,33 @@ export function resolveDeployValues(
 			else if (value) values.RUBY_ACCESS_DISABLED = value;
 		} else check(name, shape, pick('RUBY_ACCESS_DISABLED') !== '1');
 	}
+	for (const [name, shape] of Object.entries(OPTIONAL_VARS)) check(name, shape, false);
 	return { values, problems };
 }
 
-/** The config with every placeholder it contains replaced by the real value. */
+/**
+ * The config with every placeholder it contains replaced by the real value. With a reminder sender set, the
+ * `send_email` binding may send from that address only; it stays unrestricted only while e-mail is off.
+ */
 export function renderDeploy(text: string, values: DeployValues): string {
-	return text
+	const sender = values.RUBY_REMINDER_EMAIL_FROM;
+	const restricted = sender
+		? text.replace(
+				SEND_EMAIL,
+				`"send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["${sender}"] }]`
+			)
+		: text;
+	return restricted
 		.replace(PLACEHOLDER_ACCOUNT, `"account_id": "${values.CLOUDFLARE_ACCOUNT_ID}"`)
 		.replace(PLACEHOLDER_D1, values.RUBY_D1_DATABASE_ID)
 		.replaceAll(PLACEHOLDER_HOST, values.RUBY_APP_HOST)
 		.replaceAll(PLACEHOLDER_TEAM, values.RUBY_ACCESS_TEAM_DOMAIN ?? '')
 		.replace(PLACEHOLDER_AUD, `"ACCESS_AUD": "${values.RUBY_ACCESS_AUD ?? ''}"`)
-		.replace(ACCESS_DISABLED, `"ACCESS_DISABLED": "${values.RUBY_ACCESS_DISABLED ?? ''}"`);
+		.replace(ACCESS_DISABLED, `"ACCESS_DISABLED": "${values.RUBY_ACCESS_DISABLED ?? ''}"`)
+		.replace(
+			REMINDER_EMAIL_FROM,
+			`"REMINDER_EMAIL_FROM": "${values.RUBY_REMINDER_EMAIL_FROM ?? ''}"`
+		);
 }
 
 /**
@@ -160,7 +171,24 @@ export function deployProblems(
 		] as const;
 		for (const [re, what] of left)
 			if (re.test(text)) problems.push(`${file}: placeholder ${what} left after rendering`);
-		if (file === CONFIGS[0] && !REAL_D1.test(text)) problems.push(`${file}: no D1 database_id`);
+		if (!REAL_D1.test(text)) problems.push(`${file}: no D1 database_id`);
+		const sender = /"REMINDER_EMAIL_FROM"\s*:\s*"([^"]+)"/.exec(text)?.[1];
+		if (
+			sender &&
+			/"send_email"/.test(text) &&
+			!text.includes(`"allowed_sender_addresses": ["${sender}"]`)
+		)
+			problems.push(`${file}: the send_email binding is not restricted to REMINDER_EMAIL_FROM`);
+	}
+	// The jobs Worker binds the app's database and ships with the app's version.
+	const app = rendered[CONFIGS[0]];
+	const jobs = rendered[CONFIGS[1]];
+	if (app !== undefined && jobs !== undefined) {
+		const d1 = (text: string) => REAL_D1.exec(text)?.[0].replace(/\s/g, '');
+		if (d1(app) && d1(jobs) && d1(app) !== d1(jobs))
+			problems.push(`${CONFIGS[1]}: the D1 database_id differs from ${CONFIGS[0]}'s`);
+		if (versions && appVersionOf(jobs) !== appVersionOf(app))
+			problems.push(`${CONFIGS[1]}: APP_VERSION differs from ${CONFIGS[0]}'s`);
 	}
 	if (gitStatus === null) problems.push('git status failed: deploy from a git checkout');
 	else if (gitStatus.trim() !== '')
@@ -202,7 +230,8 @@ export function buildSteps(dryRun: boolean): Step[] {
 	return [
 		...(dryRun ? [] : remote),
 		{ label: 'Build', cmd: 'npx', args: ['vite', 'build'] },
-		deploy('Deploy Worker', CONFIGS[0])
+		deploy('Deploy jobs Worker (ruby-jobs)', CONFIGS[1]),
+		deploy('Deploy app Worker', CONFIGS[0])
 	];
 }
 

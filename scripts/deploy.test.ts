@@ -27,6 +27,7 @@ const ENV = {
 	RUBY_ACCESS_AUD: AUD
 };
 const committed = readFileSync(CONFIGS[0], 'utf8');
+const committedJobs = readFileSync(CONFIGS[1], 'utf8');
 const withoutAccessPair = () => {
 	const env: Record<string, string> = { ...ENV };
 	delete env.RUBY_ACCESS_TEAM_DOMAIN;
@@ -36,6 +37,13 @@ const withoutAccessPair = () => {
 const resolved = (env: Record<string, string> = ENV) => resolveDeployValues(env, {});
 const render = (env?: Record<string, string>) =>
 	renderDeploy(committed, resolved(env).values as DeployValues);
+const renderJobs = (env?: Record<string, string>) =>
+	renderDeploy(committedJobs, resolved(env).values as DeployValues);
+/** Both rendered configs, as `npm run deploy` checks them. */
+const both = (env?: Record<string, string>) => ({
+	[CONFIGS[0]]: render(env),
+	[CONFIGS[1]]: renderJobs(env)
+});
 
 describe('committed wrangler.jsonc', () => {
 	it('holds only placeholders, and Access required by default', () => {
@@ -44,6 +52,18 @@ describe('committed wrangler.jsonc', () => {
 		expect(committed).toContain('ruby.example.invalid');
 		expect(committed).toContain('"ACCESS_DISABLED": ""');
 		expect(committed).not.toMatch(/macan\.|cloudflareaccess\.com"/);
+	});
+	it('the jobs config (RB-09) holds placeholders too, runs every minute, has no route and no workers.dev', () => {
+		expect(committedJobs).toContain('"account_id": "00000000000000000000000000000000"');
+		expect(committedJobs).toContain('"database_id": "00000000-0000-4000-8000-000000000000"');
+		expect(committedJobs).toContain('"REMINDER_EMAIL_FROM": ""');
+		expect(committed).toContain('"REMINDER_EMAIL_FROM": ""');
+		expect(committedJobs).toMatch(/"name":\s*"ruby-jobs"/);
+		expect(committedJobs).toMatch(/"crons":\s*\[\s*"\* \* \* \* \*"\s*\]/);
+		expect(committedJobs).toMatch(/"workers_dev":\s*false/);
+		expect(committedJobs).not.toMatch(/"routes"|"route"|"assets"|"r2_buckets"|"migrations_dir"/);
+		expect(committedJobs).toMatch(/"invocation_logs":\s*false/);
+		expect(committedJobs).not.toMatch(/macan|@[a-z0-9-]+\.[a-z]/i);
 	});
 });
 
@@ -103,6 +123,43 @@ describe('renderDeploy and deployProblems', () => {
 		expect(out).toContain('"ACCESS_DISABLED": ""');
 		expect(out).not.toMatch(/example\.invalid|0{32}/);
 		expect(deployProblems({ [CONFIGS[0]]: out }, '')).toEqual([]);
+		expect(deployProblems(both(), '')).toEqual([]);
+		const jobs = renderJobs();
+		expect(jobs).toContain(ACCOUNT);
+		expect(jobs).toContain(D1);
+		expect(jobs).toContain('"REMINDER_EMAIL_FROM": ""');
+	});
+	it('renders the optional reminder sender into both configs, and checks its shape', () => {
+		const env = { ...ENV, RUBY_REMINDER_EMAIL_FROM: 'ruby@team-site.dev' };
+		expect(resolved(env).problems).toEqual([]);
+		expect(render(env)).toContain('"REMINDER_EMAIL_FROM": "ruby@team-site.dev"');
+		expect(renderJobs(env)).toContain('"REMINDER_EMAIL_FROM": "ruby@team-site.dev"');
+		// Red team L3: with a sender, the binding may send from that address only.
+		expect(renderJobs(env)).toContain(
+			'"send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["ruby@team-site.dev"] }]'
+		);
+		expect(renderJobs()).toContain('"send_email": [{ "name": "EMAIL" }]');
+		expect(deployProblems(both(env), '')).toEqual([]);
+		const unrestricted = renderJobs(env).replace(
+			/"send_email": \[[^\]]*\]/,
+			'"send_email": [{ "name": "EMAIL" }]'
+		);
+		expect(deployProblems({ [CONFIGS[0]]: render(env), [CONFIGS[1]]: unrestricted }, '')).toEqual([
+			expect.stringMatching(/send_email binding is not restricted/)
+		]);
+		for (const bad of ['not-an-address', 'a@b', 'x"@team-site.dev', 'ruby@x.example.invalid'])
+			expect(resolved({ ...ENV, RUBY_REMINDER_EMAIL_FROM: bad }).problems).toEqual([
+				'RUBY_REMINDER_EMAIL_FROM does not have the expected form'
+			]);
+	});
+	it('refuses a jobs config bound to another database, and an unrendered one', () => {
+		const other = renderJobs().replace(D1, '9b2c3d4e-0f1a-4b2c-8d3e-0123456789ab');
+		expect(deployProblems({ [CONFIGS[0]]: render(), [CONFIGS[1]]: other }, '')).toEqual([
+			expect.stringMatching(/jobs.*D1 database_id differs/)
+		]);
+		expect(
+			deployProblems({ [CONFIGS[0]]: render(), [CONFIGS[1]]: committedJobs }, '').join('\n')
+		).toMatch(/workers\/jobs\/wrangler\.jsonc: placeholder account_id/);
 	});
 	it('renders ACCESS_DISABLED=1 with empty Access settings', () => {
 		const rest = withoutAccessPair();
@@ -132,6 +189,22 @@ describe('renderDeploy and deployProblems', () => {
 
 describe('deployProblems: versions', () => {
 	const config = (v: string) => render().replace(/"APP_VERSION": "[^"]*"/, `"APP_VERSION": "${v}"`);
+	const jobsAt = (v: string) =>
+		renderJobs().replace(/"APP_VERSION": "[^"]*"/, `"APP_VERSION": "${v}"`);
+	it('refuses a jobs Worker whose APP_VERSION differs from the app', () => {
+		expect(
+			deployProblems({ [CONFIGS[0]]: config('0.4.0'), [CONFIGS[1]]: jobsAt('0.3.0') }, '', {
+				packageVersion: '0.4.0',
+				latestRelease: '0.4.0'
+			})
+		).toEqual([expect.stringMatching(/jobs.*APP_VERSION differs/)]);
+		expect(
+			deployProblems({ [CONFIGS[0]]: config('0.4.0'), [CONFIGS[1]]: jobsAt('0.4.0') }, '', {
+				packageVersion: '0.4.0',
+				latestRelease: '0.4.0'
+			})
+		).toEqual([]);
+	});
 	it('allows package.json, APP_VERSION and the newest release notes in agreement', () => {
 		expect(
 			deployProblems({ [CONFIGS[0]]: config('0.2.0') }, '', {
@@ -158,23 +231,33 @@ describe('deployProblems: versions', () => {
 
 describe('buildSteps', () => {
 	const gen = generatedPath(CONFIGS[0]);
-	it('bookmark, remote migrations, build, deploy, all on the generated config', () => {
+	const jobsGen = generatedPath(CONFIGS[1]);
+	it('bookmark, remote migrations, build, deploy jobs, deploy app, all on generated configs', () => {
 		const steps = buildSteps(false);
 		expect(steps.map((s) => s.args.slice(0, 4).join(' '))).toEqual([
 			'wrangler d1 time-travel info',
 			'wrangler d1 migrations apply',
 			'vite build',
+			'wrangler deploy -c workers/jobs/wrangler.deploy.generated.jsonc',
 			'wrangler deploy -c wrangler.deploy.generated.jsonc'
 		]);
 		expect(steps[1]?.args).toContain('--remote');
-		for (const i of [0, 1, 3]) expect(steps[i]?.args).toContain(gen);
-		expect(steps[3]?.args).not.toContain('--dry-run');
-		expect(steps.some((s) => s.args.includes('wrangler.jsonc'))).toBe(false);
+		for (const i of [0, 1, 4]) expect(steps[i]?.args).toContain(gen);
+		expect(steps[3]?.args).toContain(jobsGen);
+		expect(steps.some((s) => s.args.includes('--dry-run'))).toBe(false);
+		expect(
+			steps.some((s) => s.args.some((a) => a.endsWith('/wrangler.jsonc') || a === 'wrangler.jsonc'))
+		).toBe(false);
 	});
-	it('--dry-run skips everything remote and passes --dry-run to wrangler deploy', () => {
+	it('--dry-run skips everything remote and passes --dry-run to both deploys', () => {
 		const steps = buildSteps(true);
-		expect(steps.map((s) => s.label)).toEqual(['Build', 'Deploy Worker']);
-		expect(steps[1]?.args).toEqual(['wrangler', 'deploy', '-c', gen, '--dry-run']);
+		expect(steps.map((s) => s.label)).toEqual([
+			'Build',
+			'Deploy jobs Worker (ruby-jobs)',
+			'Deploy app Worker'
+		]);
+		expect(steps[1]?.args).toEqual(['wrangler', 'deploy', '-c', jobsGen, '--dry-run']);
+		expect(steps[2]?.args).toEqual(['wrangler', 'deploy', '-c', gen, '--dry-run']);
 	});
 });
 
@@ -233,6 +316,20 @@ describe('runSteps', () => {
 		});
 		expect(code).toBe(1);
 		expect(ran).toEqual(['D1 Time Travel bookmark (rollback point)', 'Apply remote migrations']);
+		vi.restoreAllMocks();
+	});
+
+	it('a failed jobs deploy stops before the app deploy', async () => {
+		quiet();
+		const ran: string[] = [];
+		const code = await runSteps(buildSteps(false), async (step: Step) => {
+			ran.push(step.label);
+			if (step.bookmark) return { code: 0, out: '{"bookmark":"00000001-00000002-00000003-abc"}' };
+			return { code: step.label.startsWith('Deploy jobs') ? 1 : 0, out: '' };
+		});
+		expect(code).toBe(1);
+		expect(ran.at(-1)).toBe('Deploy jobs Worker (ruby-jobs)');
+		expect(ran).not.toContain('Deploy app Worker');
 		vi.restoreAllMocks();
 	});
 

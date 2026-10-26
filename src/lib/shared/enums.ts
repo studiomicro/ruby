@@ -46,8 +46,31 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
 export const TARGET_KINDS = ['task', 'page'] as const;
 export type TargetKind = (typeof TARGET_KINDS)[number];
 
-export const NOTIFICATION_KINDS = ['mention', 'assigned', 'comment'] as const;
+export const NOTIFICATION_KINDS = ['mention', 'assigned', 'comment', 'reminder'] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+/** What a notification points at: a comment or assignment target, or (RB-09 reminders) an event or a personal note. */
+export const NOTIFICATION_TARGET_KINDS = [...TARGET_KINDS, 'event', 'personal'] as const;
+export type NotificationTargetKind = (typeof NOTIFICATION_TARGET_KINDS)[number];
+
+// ── Calendar and reminders (RB-09; docs/features/rb-09-calendar-reminders/PRD.md) ─────────────────────────────
+
+/** `team`: every active user sees the event; `private`: only its creator and attendees (owner answer O2). */
+export const EVENT_VISIBILITIES = ['team', 'private'] as const;
+export type EventVisibility = (typeof EVENT_VISIBILITIES)[number];
+
+export const REC_FREQS = ['daily', 'weekly', 'monthly'] as const;
+export type RecFreq = (typeof REC_FREQS)[number];
+
+export const REMINDER_TARGET_KINDS = ['task', 'event', 'personal'] as const;
+export type ReminderTargetKind = (typeof REMINDER_TARGET_KINDS)[number];
+
+export const REMINDER_MODES = ['relative', 'absolute'] as const;
+export type ReminderMode = (typeof REMINDER_MODES)[number];
+
+/** How a reminder closed; an open one has no outcome. */
+export const REMINDER_OUTCOMES = ['sent', 'missed', 'canceled', 'dead'] as const;
+export type ReminderOutcome = (typeof REMINDER_OUTCOMES)[number];
 
 // ── HR (RB-05; docs/features/rb-05-hrm-roadmap.md section 4) ─────────────────────────────────────────────
 
@@ -100,7 +123,9 @@ export const HR_AUDIT_ACTIONS = [
 	'work_days_update',
 	'leave_override',
 	'leave_self_approve',
-	'leave_self_reject'
+	'leave_self_reject',
+	// RB-09 (red team L1): an admin purged a deactivated user's calendar events (a count, never a title).
+	'calendar_events_purge'
 ] as const;
 export type HrAuditAction = (typeof HR_AUDIT_ACTIONS)[number];
 
@@ -128,7 +153,8 @@ export const HR_AUDIT_ACTION_LABELS: Record<HrAuditAction, string> = {
 	work_days_update: 'Work days changed',
 	leave_override: 'Leave decided or canceled by HR',
 	leave_self_approve: 'Leave self-approved (no other approver)',
-	leave_self_reject: 'Leave self-rejected (no other approver)'
+	leave_self_reject: 'Leave self-rejected (no other approver)',
+	calendar_events_purge: 'Calendar events of a deactivated user purged'
 };
 
 /**

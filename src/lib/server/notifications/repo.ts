@@ -1,8 +1,9 @@
-import type { NotificationKind, TargetKind } from '#lib/shared/enums';
+import type { NotificationKind, NotificationTargetKind, TargetKind } from '#lib/shared/enums';
 import { extractMentionIds } from '#lib/shared/markdown';
 import { mentionNames } from '../auth/users';
 import { pageOfPosition } from '../comments/service';
 import type { Db } from '../db';
+import { eventLiveSql, eventVisibleSql } from '../events/timing';
 import { liveTargetSql, resolveTargets, targetKey } from '../targets/resolve';
 import { commentExcerpt } from './excerpt';
 
@@ -40,11 +41,14 @@ export const parseFilter = (raw: string | null | undefined): NotificationFilter 
 
 export interface NotificationRow {
 	id: string;
+	userId: string;
 	kind: NotificationKind;
 	actorId: string;
-	targetKind: TargetKind;
+	targetKind: NotificationTargetKind;
 	targetId: string;
 	commentId: string | null;
+	/** RB-09 reminders: the plain-text line snapshotted when it fired. */
+	summary: string | null;
 	createdAt: number;
 	readAt: number | null;
 }
@@ -61,8 +65,8 @@ export async function listNotifications(
 	const limit = options.limit ?? NOTIFICATIONS_PAGE_SIZE;
 	const { results } = await prep(
 		db,
-		`SELECT id, kind, actor_id AS actorId, target_kind AS targetKind, target_id AS targetId,
-			comment_id AS commentId, created_at AS createdAt, read_at AS readAt
+		`SELECT id, user_id AS userId, kind, actor_id AS actorId, target_kind AS targetKind, target_id AS targetId,
+			comment_id AS commentId, summary, created_at AS createdAt, read_at AS readAt
 		 FROM notifications
 		 WHERE user_id = ?1 AND (?2 = 0 OR read_at IS NULL)
 		   AND (?3 IS NULL OR created_at < ?3 OR (created_at = ?3 AND id < ?4))
@@ -121,6 +125,8 @@ export interface NotificationView {
 	verb: string;
 	/** Null when the task or page is gone ("This item is no longer available"). */
 	targetTitle: string | null;
+	/** A reminder's stored line (shown even when its target is gone). */
+	summary: string | null;
 	href: string | null;
 	excerpt: string | null;
 	commentDeleted: boolean;
@@ -131,8 +137,12 @@ export interface NotificationView {
 const VERBS: Record<NotificationKind, string> = {
 	mention: 'mentioned you in a comment on',
 	comment: 'commented on',
-	assigned: 'assigned you'
+	assigned: 'assigned you',
+	reminder: 'Reminder'
 };
+
+const isCommentTarget = (kind: NotificationTargetKind): kind is TargetKind =>
+	kind === 'task' || kind === 'page';
 
 const idsJson = (ids: (string | null)[]) =>
 	JSON.stringify([...new Set(ids.filter((id): id is string => !!id))].slice(0, 500));
@@ -148,7 +158,8 @@ export async function describeNotifications(
 	rows: readonly NotificationRow[]
 ): Promise<NotificationView[]> {
 	if (rows.length === 0) return [];
-	const [actors, targets, comments] = await Promise.all([
+	const eventIds = idsJson(rows.filter((r) => r.targetKind === 'event').map((r) => r.targetId));
+	const [actors, targets, comments, liveEvents] = await Promise.all([
 		prep(
 			db,
 			`SELECT id, name FROM users WHERE id IN (SELECT value FROM json_each(?1)) LIMIT 500`,
@@ -158,7 +169,9 @@ export async function describeNotifications(
 			.then((r) => new Map(r.results.map((u) => [u.id, u.name]))),
 		resolveTargets(
 			db,
-			rows.map((r) => ({ kind: r.targetKind, id: r.targetId }))
+			rows.flatMap((r) =>
+				isCommentTarget(r.targetKind) ? [{ kind: r.targetKind, id: r.targetId }] : []
+			)
 		),
 		// Only comments whose task or page (and its project) is live: a deleted target's comments show nothing.
 		prep(
@@ -175,7 +188,19 @@ export async function describeNotifications(
 			idsJson(rows.map((r) => r.commentId))
 		)
 			.all<{ id: string; body: string; deletedAt: number | null; position: number }>()
-			.then((r) => new Map(r.results.map((c) => [c.id, c])))
+			.then((r) => new Map(r.results.map((c) => [c.id, c]))),
+		// RB-09: events a reminder points at, while live and still visible to the inbox's owner (no query without one).
+		eventIds === '[]'
+			? new Set<string>()
+			: prep(
+					db,
+					`SELECT e.id FROM events e WHERE e.id IN (SELECT value FROM json_each(?1))
+					   AND ${eventLiveSql('e')} AND ${eventVisibleSql('e', '?2')} LIMIT 500`,
+					eventIds,
+					rows[0]?.userId ?? ''
+				)
+					.all<{ id: string }>()
+					.then((r) => new Set(r.results.map((e) => e.id)))
 	]);
 	const names = await mentionNames(
 		db,
@@ -185,6 +210,29 @@ export async function describeNotifications(
 		{ markDeactivated: true }
 	);
 	return rows.map((r) => {
+		if (r.kind === 'reminder' || !isCommentTarget(r.targetKind)) {
+			const href =
+				r.targetKind === 'personal'
+					? '/reminders'
+					: r.targetKind === 'event'
+						? liveEvents.has(r.targetId)
+							? `/calendar/events/${r.targetId}`
+							: null
+						: (targets.get(targetKey(r.targetKind, r.targetId))?.href ?? null);
+			return {
+				id: r.id,
+				kind: r.kind,
+				actorName: 'Reminder',
+				verb: VERBS[r.kind],
+				targetTitle: href ? (r.summary ?? 'Reminder') : null,
+				summary: r.summary,
+				href,
+				excerpt: null,
+				commentDeleted: false,
+				createdAt: r.createdAt,
+				unread: r.readAt === null
+			};
+		}
 		const target = targets.get(targetKey(r.targetKind, r.targetId));
 		// `comments` holds only comments of live targets; the target check here is the second line behind it.
 		const comment = target && r.commentId ? comments.get(r.commentId) : undefined;
@@ -199,6 +247,7 @@ export async function describeNotifications(
 			actorName: actors.get(r.actorId) ?? 'Someone',
 			verb: VERBS[r.kind],
 			targetTitle: target?.title ?? null,
+			summary: null,
 			href,
 			excerpt: commentLive ? commentExcerpt(comment.body, names) : null,
 			commentDeleted: target !== undefined && r.commentId !== null && !commentLive,

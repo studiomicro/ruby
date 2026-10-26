@@ -30,8 +30,10 @@ what the team knows as Markdown pages, with comments, @mentions, notifications, 
   Admins invite others by e-mail; an invite is a single-use, expiring token. Admins can deactivate users; they cannot
   deactivate or demote the last active admin.
 - English UI only. No i18n layer, no language switch.
-- No AI, no queues, no background jobs, no e-mail sending beyond what an owner decision adds later. Invite links are
-  shown to the admin to copy until an e-mail path is approved.
+- No AI, no queues. The one background job is RB-09 reminders (owner answer O1, 2026-10-26), run by the `ruby-jobs`
+  Worker. The one e-mail path is RB-09 reminder e-mail (owner answer O5): opt-in per user, sent through Cloudflare
+  Email Sending only while `REMINDER_EMAIL_FROM` names a verified sender. Invite links are still shown to the admin
+  to copy.
 - Data in Ruby is the team's internal work. Never log page text, comment text or attachment names at info level.
 - Never log employee personal data (names, contact details, identifiers, salary, any tier 1–3 value) at any level,
   and never write a value to the HR audit log: field names only.
@@ -39,12 +41,15 @@ what the team knows as Markdown pages, with comments, @mentions, notifications, 
 ## Locked architecture (Cloudflare)
 
 - Svelte 5 + SvelteKit 3 + TypeScript + Vite; Tailwind CSS v4; small Svelte-native components, no UI framework.
-- `@sveltejs/adapter-cloudflare`; **one app Worker** owns SSR, loaders, form actions and API routes. No jobs or inbound
-  Workers, no Queues, no KV, no Workers AI. Single production environment: no staging.
+- `@sveltejs/adapter-cloudflare`; **two Workers**: the app Worker `ruby` (`wrangler.jsonc`) owns SSR, loaders, form
+  actions and API routes; the jobs Worker `ruby-jobs` (`workers/jobs/wrangler.jsonc`, owner answer O1) has a Cron
+  Trigger once a minute, the same D1 binding and no HTTP surface, and delivers reminders. Shared reminder code lives
+  in `src/lib/server/reminders/` with relative imports only (no `#lib`, no `env.ts`), so both Workers bundle it. No
+  inbound Workers, no Queues, no KV, no Workers AI. Single production environment: no staging.
 - D1 database `ruby`, R2 bucket `ruby-files` bound as `FILES`, in the deployer's own Cloudflare account.
-- The repository is public: `wrangler.jsonc` holds zero placeholders (account id, D1 id, app host, Access team domain and
+- The repository is public: `wrangler.jsonc` and `workers/jobs/wrangler.jsonc` hold zero placeholders (account id, D1 id, app host, Access team domain and
   AUD, `ACCESS_DISABLED` = `""`). Real values live in the environment or the gitignored `.deploy.env`
-  (`.deploy.env.example`); `npm run deploy` renders a gitignored `wrangler.deploy.generated.jsonc` and uses it for every
+  (`.deploy.env.example`); `npm run deploy` renders a gitignored `wrangler.deploy.generated.jsonc` next to each config (app and jobs) and uses it for every
   wrangler call. Never commit an id, hostname, e-mail address or token of a real deployment; use `example.test` /
   `example.com` in tests and docs. `npm run types:cf` generates plain `string` vars.
 - D1 + Drizzle. Schema in `src/lib/server/db/schema.ts`; numbered SQL migrations in `migrations/` (`0000_init.sql`,
@@ -80,7 +85,8 @@ what the team knows as Markdown pages, with comments, @mentions, notifications, 
   edit, revisions), `/search`, `/notifications`, `/account` (profile, password), `/admin/users` (admin only), an
   authorised attachment download route (RB-04 PRD), `/people` (directory, `/people/[id]` profile and
   `/people/[id]/edit` for HR), `/people/org` (org chart), `/hr/audit` (HR and admins), `/hr/export` (HR, CSV), and
-  from RB-06/RB-07 `/time-off` and `/onboarding`. The feature PRDs under `docs/features/` give the exact trees.
+  from RB-06/RB-07 `/time-off` and `/onboarding`, and from RB-09 `/calendar` (month, week, agenda;
+  `/calendar/events/new`, `/calendar/events/[id]`, `/calendar/events/[id]/edit`) and `/reminders`. The feature PRDs under `docs/features/` give the exact trees.
 - Every primary action works or shows why it is unavailable. Loading, empty, error, saving and success states exist;
   success is shown only after the server confirms the write. Forms work without JavaScript where SvelteKit allows it.
 - Text shown to users never contains a file path or internal identifier.
@@ -123,10 +129,11 @@ what the team knows as Markdown pages, with comments, @mentions, notifications, 
 - Keep `docs/TASKS.md` current; finished items and evidence move to `docs/HISTORY.md`; `docs/ACCEPTANCE.md` rows
   change only with a named check.
 - npm script contract: `dev`, `check`, `lint`, `test`, `build`, `gates`, `types:cf`, `db:generate`,
-  `db:migrate:local`, `db:seed:local`, `db:reset:local`, `deploy`. Verify before describing them as runnable.
+  `db:migrate:local`, `db:seed:local`, `db:reset:local`, `deploy`, `jobs:dev` (RB-09 local cron). Verify before
+  describing them as runnable.
 - Local and remote migration commands stay clearly separate. Never seed or reset the remote database.
 - `npm run deploy` (`scripts/deploy.ts`) renders the generated config from `.deploy.env`, records a D1 Time Travel
-  bookmark, applies remote migrations, builds and runs `wrangler deploy`; `--dry-run` and `--write-config` exist. It is the only way production changes. This file grants no permission to buy services, create
+  bookmark, applies remote migrations, builds, deploys the jobs Worker and then the app Worker; `--dry-run` and `--write-config` exist. It is the only way production changes. This file grants no permission to buy services, create
   provider accounts or change production by any other route.
 - Owner decision 2026-10-26: there is one environment and no staging. After the gates pass, the orchestrator may run
   `npm run deploy`. If the gates fail, or a migration is destructive, do not deploy; report instead.

@@ -45,6 +45,7 @@
 
 <PageHeader title="Notifications">
 	{#snippet actions()}
+		<Button href="/reminders" variant="ghost">My reminders</Button>
 		{#if anyUnread}
 			<form
 				method="POST"
@@ -81,7 +82,7 @@
 	{:else}
 		<EmptyState
 			title="No notifications yet"
-			description="Mentions, comments on your tasks and assignments show up here."
+			description="Mentions, comments on your tasks, assignments and your reminders show up here."
 		/>
 	{/if}
 {:else}
@@ -92,9 +93,20 @@
 				<div class="text">
 					<p class="sentence">
 						{#if n.unread}<span class="sr-only">Unread: </span>{/if}
-						<strong>{n.actorName}</strong>
-						{n.verb}
-						{#if n.href && n.targetTitle}
+						{#if n.kind === 'reminder'}
+							<strong>Reminder:</strong>
+							{#if n.href}
+								<a href={n.href} onclick={(e) => open(e, n.id, n.href ?? '', n.unread)}
+									>{n.summary ?? 'Reminder'}</a
+								>
+							{:else}
+								{n.summary ?? 'Reminder'} <span class="gone">(no longer available)</span>
+							{/if}
+						{:else}
+							<strong>{n.actorName}</strong>
+							{n.verb}
+						{/if}
+						{#if n.kind === 'reminder'}{:else if n.href && n.targetTitle}
 							<a href={n.href} onclick={(e) => open(e, n.id, n.href ?? '', n.unread)}
 								>{n.targetTitle}</a
 							>

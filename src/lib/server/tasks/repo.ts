@@ -12,6 +12,7 @@ import type { Db } from '../db';
 import { milestones, projects, tasks, users } from '../db/schema';
 import { isUniqueViolation, newId } from '../util';
 import { activeUserOrNone, CLOSED_STATUS_LIST } from '../projects/repo';
+import { taskDueChangedStatement } from '../reminders/repo';
 import { assignedNotificationStatement } from './assign-notification';
 import { dueBucket, type DueBucket } from './dates';
 import { needsRenumber, POSITION_STEP, positionBetween } from './position';
@@ -513,7 +514,10 @@ export async function updateTask(
 					})
 				]
 			: [];
-	const [written] = await db.batch([update, ...notify]);
+	// RB-09: a changed due date re-derives the task's relative reminders (reminders/repo.ts).
+	const reminders =
+		fields.dueOn !== undefined ? [taskDueChangedStatement(db, task.id, updatedAt, at)] : [];
+	const [written] = await db.batch([update, ...notify, ...reminders]);
 	if (written.length === 1) return { ok: true };
 
 	const current = await getTaskById(db, project.id, task.id);

@@ -25,6 +25,9 @@ export function assignedNotificationStatement(
 				targetKind: sql`'task'`.as('targetKind'),
 				targetId: sql`${input.taskId}`.as('targetId'),
 				commentId: sql`null`.as('commentId'),
+				summary: sql`null`.as('summary'),
+				reminderId: sql`null`.as('reminderId'),
+				occurrenceAt: sql`null`.as('occurrenceAt'),
 				createdAt: sql`${input.now}`.as('createdAt'),
 				readAt: sql`null`.as('readAt')
 			})
