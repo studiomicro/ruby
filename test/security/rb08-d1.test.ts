@@ -662,7 +662,10 @@ describe('bulk edit', () => {
 		const base: string[] = [];
 		for (let i = 0; i < 9; i += 1) base.push(await mkLabel(w.ops.id, w.member, `Base ${i}`));
 		for (const t of ts)
-			expect((await setTaskLabels(db, w.ops.id, t.id, base, Date.now())).ok).toBe(true);
+			expect(
+				(await setTaskLabels(db, w.ops.id, t.id, { labelIds: base, teamLabelIds: [] }, Date.now()))
+					.ok
+			).toBe(true);
 		const extra: string[] = [];
 		for (let i = 0; i < 20; i += 1) extra.push(await mkLabel(w.ops.id, w.member, `Extra ${i}`));
 		const results = await Promise.all(
@@ -830,7 +833,7 @@ describe('soft-deleted labels and milestones do not leak', () => {
 		const w = await world();
 		const ts = await seedMany(w.member, w.ops, 2);
 		const l = await mkLabel(w.ops.id, w.member, 'Gone');
-		await setTaskLabels(db, w.ops.id, ts[0]!.id, [l], Date.now());
+		await setTaskLabels(db, w.ops.id, ts[0]!.id, { labelIds: [l], teamLabelIds: [] }, Date.now());
 		expect((await deleteLabel(db, w.admin, w.ops.id, l, Date.now())).ok).toBe(true);
 		expect((await taskExtras(db, w.ops.id, [ts[0]!.id])).get(ts[0]!.id)?.labels).toEqual([]);
 		const loaded = (await run(
@@ -842,7 +845,17 @@ describe('soft-deleted labels and milestones do not leak', () => {
 		};
 		expect(loaded.filters.labels).toEqual([]);
 		expect(loaded.labels.map((x) => x.id)).not.toContain(l);
-		expect((await setTaskLabels(db, w.ops.id, ts[1]!.id, [l], Date.now())).ok).toBe(false);
+		expect(
+			(
+				await setTaskLabels(
+					db,
+					w.ops.id,
+					ts[1]!.id,
+					{ labelIds: [l], teamLabelIds: [] },
+					Date.now()
+				)
+			).ok
+		).toBe(false);
 		expect(
 			(await bulkUpdate(db, w.member, w.ops.id, [ts[1]!.id], { addLabelId: l }, Date.now())).ok
 		).toBe(false);

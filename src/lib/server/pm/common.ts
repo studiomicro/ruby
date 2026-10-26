@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, type SQL, type SQLWrapper } from 'drizzle-orm';
 import type { SessionUser } from '../auth/session';
 import type { Db } from '../db';
 import { projects } from '../db/schema';
@@ -67,3 +67,15 @@ export async function holds(db: Db, condition: ReturnType<typeof sql>): Promise<
 		.get();
 	return !!row;
 }
+
+/**
+ * The tasks a per-task lookup is for: ids (bound once as JSON), or (RB-12) a subquery that selects them, so the
+ * lookup can run in the same batch as the page query it follows.
+ */
+export type TaskIdSet = readonly string[] | SQL;
+
+/** SQL: `column` is one of the task ids. */
+export const inTaskIds = (column: SQLWrapper, ids: TaskIdSet) =>
+	Array.isArray(ids)
+		? sql`${column} in (select value from json_each(${JSON.stringify(ids)}))`
+		: sql`${column} in ${ids as SQL}`;

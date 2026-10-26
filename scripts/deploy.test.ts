@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	buildSteps,
 	CONFIGS,
+	deployEnvFromKeychain,
 	deployProblems,
 	generatedPath,
 	parseBookmark,
@@ -343,5 +344,34 @@ describe('runSteps', () => {
 		expect(code).toBe(1);
 		expect(ran).toEqual(['D1 Time Travel bookmark (rollback point)']);
 		vi.restoreAllMocks();
+	});
+});
+
+describe('deployEnvFromKeychain', () => {
+	const file = 'CLOUDFLARE_ACCOUNT_ID=abc\n';
+	const encoded = Buffer.from(file).toString('base64');
+	it('decodes the base64 Keychain item on macOS', () => {
+		const run = vi.fn(() => `${encoded}\n`);
+		expect(deployEnvFromKeychain({}, 'darwin', run)).toBe(file);
+		expect(run).toHaveBeenCalledWith('security', [
+			'find-generic-password',
+			'-s',
+			'ruby-deploy-env',
+			'-w'
+		]);
+	});
+	it('honours RUBY_KEYCHAIN_SERVICE', () => {
+		const run = vi.fn(() => encoded);
+		deployEnvFromKeychain({ RUBY_KEYCHAIN_SERVICE: 'other' }, 'darwin', run);
+		expect(run).toHaveBeenCalledWith('security', ['find-generic-password', '-s', 'other', '-w']);
+	});
+	it('is null off macOS, when the item is missing, or when it is not base64', () => {
+		expect(deployEnvFromKeychain({}, 'linux', () => encoded)).toBeNull();
+		expect(
+			deployEnvFromKeychain({}, 'darwin', () => {
+				throw new Error('not found');
+			})
+		).toBeNull();
+		expect(deployEnvFromKeychain({}, 'darwin', () => 'not base64!')).toBeNull();
 	});
 });

@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /** Where the setup project keeps the seeded admin's session cookie (gitignored). */
 export const STORAGE_STATE = 'e2e/.auth/admin.json';
@@ -31,4 +31,25 @@ export async function emulateSafeAreas(
 		for (const side of ['top', 'right', 'bottom', 'left'] as const)
 			root.setProperty(`--sai-${side}`, `${i[side] ?? 0}px`);
 	}, insets);
+}
+
+/**
+ * Submits the Report an issue form and waits for the task page. The form allows 20 reports per user per minute
+ * (RB-12), and the e2e specs report as the one seeded admin: when the budget is spent the form answers "Slow down"
+ * and keeps what was typed, so this waits for the next minute and submits once more.
+ */
+export async function submitReport(page: Page) {
+	const done = /\/projects\/[A-Z0-9]+\/tasks\/\d+\?reported=/;
+	await page.getByRole('button', { name: 'Report issue' }).click();
+	const slow = page.getByText('Slow down a little');
+	await expect(async () => {
+		if (done.test(page.url()) || (await slow.isVisible())) return;
+		throw new Error('still submitting');
+	}).toPass({ timeout: 10_000 });
+	if (!done.test(page.url())) {
+		test.info().setTimeout(test.info().timeout + 75_000);
+		await page.waitForTimeout(61_000 - (Date.now() % 60_000));
+		await page.getByRole('button', { name: 'Report issue' }).click();
+	}
+	await expect(page).toHaveURL(done);
 }

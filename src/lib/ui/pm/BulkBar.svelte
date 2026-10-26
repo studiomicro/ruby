@@ -2,7 +2,9 @@
 	BulkBar: the list view's bulk edit form (RB-08). The row checkboxes belong to it by `form` id, so it works without
 	JavaScript (then it is always shown). With JavaScript it appears once a row is selected, shows "N selected",
 	keeps Apply disabled until a change is chosen, and clears the selection after the server confirms. Every control is
-	a native select, input or button (≥ 44 px on touch); nothing depends on hover.
+	a native select, input or button (≥ 44 px on touch); nothing depends on hover. RB-12: a type select, team-label
+	add/remove (`teamLabels`), and `noun` for the Issues page; the milestone and project-label selects show only
+	when they are given (the Issues bar passes none: they belong to one project).
 -->
 <script lang="ts">
 	import { enhance } from '$app/forms';
@@ -13,6 +15,7 @@
 	import Select from '#lib/ui/kit/Select.svelte';
 	import TextField from '#lib/ui/kit/TextField.svelte';
 	import { PRIORITY_OPTIONS, STATUS_OPTIONS, type UserOption } from '#lib/ui/tasks/options';
+	import { TYPE_OPTIONS } from '#lib/ui/issues/options';
 	import type { PmAnswer } from './answer';
 
 	let {
@@ -25,6 +28,8 @@
 		users,
 		milestones,
 		labels,
+		teamLabels = [],
+		noun = 'tasks',
 		answer
 	}: {
 		id: string;
@@ -38,6 +43,9 @@
 		users: readonly UserOption[];
 		milestones: readonly { id: string; name: string; status: string }[];
 		labels: readonly { id: string; name: string; color: LabelColor }[];
+		teamLabels?: readonly { id: string; name: string; color: LabelColor }[];
+		/** What the rows are called ("tasks", or "issues" on the Issues page). */
+		noun?: string;
 		answer: PmAnswer | null;
 	} = $props();
 
@@ -50,6 +58,7 @@
 	const keep = { value: '', label: 'No change' };
 	const statusOptions = [keep, ...STATUS_OPTIONS];
 	const priorityOptions = [keep, ...PRIORITY_OPTIONS];
+	const typeOptions = [keep, ...TYPE_OPTIONS];
 	const assigneeOptions = $derived([
 		keep,
 		{ value: 'none', label: 'Unassign' },
@@ -64,6 +73,10 @@
 		{ value: '', label: 'None' },
 		...labels.map((l) => ({ value: l.id, label: l.name }))
 	]);
+	const teamLabelOptions = $derived([
+		{ value: '', label: 'None' },
+		...teamLabels.map((l) => ({ value: l.id, label: l.name }))
+	]);
 	const errors = $derived(answer && !answer.ok ? (answer.errors ?? {}) : {});
 
 	/** Whether any change control has a value (Apply stays disabled until one does). */
@@ -73,11 +86,14 @@
 		changed = [
 			'status',
 			'priority',
+			'type',
 			'assigneeId',
 			'milestoneId',
 			'dueOn',
 			'addLabelId',
 			'removeLabelId',
+			'addTeamLabelId',
+			'removeTeamLabelId',
 			'clearDue'
 		].some((name) => {
 			const v = data.get(name);
@@ -111,7 +127,7 @@
 	>
 		<div class="head">
 			<h2 id="{id}-title">
-				{#if mounted}{selectedCount} selected{:else}Edit selected tasks{/if}
+				{#if mounted}{selectedCount} selected{:else}Edit selected {noun}{/if}
 			</h2>
 			{#if mounted && pageCount > 0}
 				<label class="all"
@@ -132,6 +148,7 @@
 				options={priorityOptions}
 				error={errors.priority}
 			/>
+			<Select label="Set type" name="type" options={typeOptions} error={errors.type} />
 			<Select
 				label="Assign to"
 				name="assigneeId"
@@ -164,6 +181,20 @@
 					error={errors.removeLabelId}
 				/>
 			{/if}
+			{#if teamLabels.length > 0}
+				<Select
+					label="Add team label"
+					name="addTeamLabelId"
+					options={teamLabelOptions}
+					error={errors.addTeamLabelId}
+				/>
+				<Select
+					label="Remove team label"
+					name="removeTeamLabelId"
+					options={teamLabelOptions}
+					error={errors.removeTeamLabelId}
+				/>
+			{/if}
 		</div>
 		<p class="note">Bulk changes overwrite what others changed meanwhile.</p>
 		<div class="buttons">
@@ -172,7 +203,7 @@
 				variant="primary"
 				disabled={mounted && (!changed || selectedCount === 0)}
 				loading={saving}
-				loadingLabel="Updating…">Update selected tasks</Button
+				loadingLabel="Updating…">Update selected {noun}</Button
 			>
 			{#if mounted && selectedCount > 0}
 				<Button variant="ghost" onclick={() => onselectall(false)}>Clear selection</Button>

@@ -5,11 +5,23 @@ import {
 	TASK_STATUSES,
 	type ProjectStatus,
 	type TaskPriority,
-	type TaskStatus
+	type TaskStatus,
+	type TaskType
 } from '#lib/shared/enums';
 import type { SessionUser } from '../auth/session';
 import type { Db } from '../db';
-import { milestones, projects, tasks, users } from '../db/schema';
+import {
+	labels,
+	milestones,
+	projects,
+	taskLabels,
+	tasks,
+	taskTeamLabels,
+	teamLabels,
+	users
+} from '../db/schema';
+import type { LabelSets } from '../pm/validation';
+import { liveLabelCount } from '../pm/team-labels';
 import { isUniqueViolation, newId } from '../util';
 import { activeUserOrNone, CLOSED_STATUS_LIST } from '../projects/repo';
 import { taskDueChangedStatement } from '../reminders/repo';
@@ -45,7 +57,7 @@ const creator = alias(users, 'creator');
 const closedJson = JSON.stringify(CLOSED_STATUS_LIST);
 
 /** `priority` as a rank for sorting: urgent highest. */
-const priorityRank = sql<number>`case ${tasks.priority} when 'urgent' then 4 when 'high' then 3 when 'medium' then 2 when 'low' then 1 else 0 end`;
+export const priorityRank = sql<number>`case ${tasks.priority} when 'urgent' then 4 when 'high' then 3 when 'medium' then 2 when 'low' then 1 else 0 end`;
 
 const rowColumns = {
 	id: tasks.id,
@@ -60,7 +72,8 @@ const rowColumns = {
 	updatedAt: tasks.updatedAt,
 	completedAt: tasks.completedAt,
 	milestoneId: tasks.milestoneId,
-	milestoneName: milestone.name
+	milestoneName: milestone.name,
+	type: tasks.type
 };
 
 export interface TaskRow {
@@ -77,6 +90,7 @@ export interface TaskRow {
 	completedAt: number | null;
 	milestoneId: string | null;
 	milestoneName: string | null;
+	type: TaskType;
 }
 
 export interface TaskDetail extends TaskRow {
@@ -112,6 +126,16 @@ export const completedAtFor = (next: TaskStatus, at: number) =>
 
 // ── Reads ───────────────────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * SQL: the task carries any of the live labels `ids` names, project labels or team labels (RB-12: ids are UUIDs, so
+ * an id matches at most one table). A semi-join, so a selective label drives the query from the link indexes; the
+ * ids are bound once as JSON.
+ */
+export const withAnyLabel = (ids: readonly string[]) => {
+	const json = JSON.stringify(ids);
+	return sql`${tasks.id} in (select tl.task_id from task_labels tl join labels l on l.id = tl.label_id where tl.label_id in (select value from json_each(${json})) and l.deleted_at is null union select tt.task_id from task_team_labels tt join team_labels tl2 on tl2.id = tt.team_label_id where tt.team_label_id in (select value from json_each(${json})) and tl2.deleted_at is null)`;
+};
+
 function filterConditions(
 	projectId: string,
 	filters: TaskFilters,
@@ -131,11 +155,8 @@ function filterConditions(
 	if (a === 'me') conditions.push(eq(tasks.assigneeId, viewerId));
 	else if (a === 'none') conditions.push(isNull(tasks.assigneeId));
 	else if (a !== 'any') conditions.push(eq(tasks.assigneeId, a.userId));
-	// RB-08: any of the labels (live ones only), and the milestone (`none`: no milestone).
-	if (filters.labels.length > 0)
-		conditions.push(
-			sql`exists (select 1 from task_labels tl join labels l on l.id = tl.label_id where tl.task_id = ${tasks.id} and l.deleted_at is null and tl.label_id in (select value from json_each(${JSON.stringify(filters.labels)})))`
-		);
+	// RB-08: any of the labels (live ones only; RB-12: project or team labels), and the milestone (`none`: none).
+	if (filters.labels.length > 0) conditions.push(withAnyLabel(filters.labels));
 	const m = filters.milestone;
 	if (m === 'none') conditions.push(isNull(tasks.milestoneId));
 	else if (m !== 'any') conditions.push(eq(tasks.milestoneId, m.id));
@@ -366,6 +387,13 @@ async function projectRefusal(
 	return null;
 }
 
+/** True when a D1 error is the `tasks.id` primary key taken (message and `cause` are both checked). */
+function idTaken(e: unknown): boolean {
+	const msg =
+		String((e as Error)?.message ?? e) + String((e as { cause?: Error })?.cause?.message ?? '');
+	return msg.includes('tasks.id');
+}
+
 /**
  * Creates a task in one batch: the INSERT takes `number` from `projects.next_task_number` (and is guarded by the
  * project being active and the assignee being active), the counter is bumped only when that row exists, and the
@@ -378,10 +406,61 @@ export async function createTask(
 	actor: Actor,
 	project: ProjectScope,
 	input: TaskFields,
-	at: number
-): Promise<TaskWrite<{ id: string; number: number }>> {
+	at: number,
+	options: {
+		/**
+		 * RB-12: the client's submission id as the task id, so a double submit hits the primary key instead of making
+		 * a second task. A collision on it answers `busy` at once (the caller looks the task up); never retried.
+		 */
+		id?: string;
+		/** RB-12: labels linked in the same batch (live ones of the right scope only; the caller caps the count). */
+		labels?: LabelSets;
+	} = {}
+): Promise<TaskWrite<{ id: string; number: number; labelsApplied: number }>> {
 	for (let attempt = 0; attempt < LIMITS.createAttempts; attempt++) {
-		const id = newId();
+		const id = options.id ?? newId();
+		// SQL: the task row this batch wrote (not merely "a task with this id exists": a client id may name another
+		// task, and then the insert below writes nothing). Every dependent statement of the batch is keyed on it.
+		const created = sql`exists (select 1 from tasks t where t.id = ${id} and t.project_id = ${project.id} and t.created_by = ${actor.id} and t.created_at = ${at} and t.updated_at = ${at} and t.deleted_at is null)`;
+		const projectLabels = JSON.stringify(options.labels?.labelIds ?? []);
+		const teamLabelIds = JSON.stringify(options.labels?.teamLabelIds ?? []);
+		const labelLinks = options.labels
+			? [
+					db.insert(taskLabels).select(
+						db
+							.select({
+								taskId: sql`${id}`.as('taskId'),
+								labelId: labels.id,
+								createdAt: sql`${at}`.as('createdAt')
+							})
+							.from(labels)
+							.where(
+								and(
+									sql`${labels.id} in (select value from json_each(${projectLabels}))`,
+									eq(labels.projectId, project.id),
+									isNull(labels.deletedAt),
+									created
+								)
+							)
+					),
+					db.insert(taskTeamLabels).select(
+						db
+							.select({
+								taskId: sql`${id}`.as('taskId'),
+								teamLabelId: teamLabels.id,
+								createdAt: sql`${at}`.as('createdAt')
+							})
+							.from(teamLabels)
+							.where(
+								and(
+									sql`${teamLabels.id} in (select value from json_each(${teamLabelIds}))`,
+									isNull(teamLabels.deletedAt),
+									created
+								)
+							)
+					)
+				]
+			: [];
 		const notify =
 			input.assigneeId !== null && input.assigneeId !== actor.id
 				? [
@@ -394,7 +473,7 @@ export async function createTask(
 					]
 				: [];
 		try {
-			const [inserted] = await db.batch([
+			const results = await db.batch([
 				db
 					.insert(tasks)
 					.select(
@@ -417,7 +496,8 @@ export async function createTask(
 									'completedAt'
 								),
 								deletedAt: sql`null`.as('deletedAt'),
-								milestoneId: sql`${input.milestoneId}`.as('milestoneId')
+								milestoneId: sql`${input.milestoneId}`.as('milestoneId'),
+								type: sql`${input.type}`.as('type')
 							})
 							.from(projects)
 							.where(
@@ -436,13 +516,14 @@ export async function createTask(
 				db
 					.update(projects)
 					.set({ nextTaskNumber: sql`${projects.nextTaskNumber} + 1`, updatedAt: at })
-					.where(
-						and(eq(projects.id, project.id), sql`exists (select 1 from tasks t where t.id = ${id})`)
-					),
-				...notify
+					.where(and(eq(projects.id, project.id), created)),
+				...notify,
+				...labelLinks,
+				db.select({ n: sql<number>`${liveLabelCount(id)}` }).from(sql`(select 1)`)
 			]);
-			const row = inserted[0];
-			if (row) return { ok: true, id, number: row.number };
+			const row = (results[0] as { number: number }[])[0];
+			const applied = (results.at(-1) as { n: number }[] | undefined)?.[0]?.n ?? 0;
+			if (row) return { ok: true, id, number: row.number, labelsApplied: Number(applied) };
 			const refused = await projectRefusal(db, project.id);
 			if (refused) return refused;
 			if (
@@ -453,6 +534,8 @@ export async function createTask(
 			return { ok: false, reason: 'invalid', errors: { assigneeId: MESSAGES.assignee } };
 		} catch (e) {
 			if (!isUniqueViolation(e)) throw e;
+			// The client id is taken (a double submit): stop; a (project, number) collision is retried as before.
+			if (options.id !== undefined && idTaken(e)) return { ok: false, reason: 'busy' };
 		}
 	}
 	return { ok: false, reason: 'busy' };

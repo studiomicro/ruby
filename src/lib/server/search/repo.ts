@@ -1,4 +1,4 @@
-import type { ProjectStatus, TaskStatus } from '#lib/shared/enums';
+import type { ProjectStatus, TaskStatus, TaskType } from '#lib/shared/enums';
 import type { Db } from '../db';
 import {
 	buildMatchQuery,
@@ -43,6 +43,8 @@ export interface TaskHit {
 	title: Segment[];
 	snippet: Segment[];
 	status: TaskStatus;
+	/** RB-12: the task's type (a badge next to the hit). */
+	type: TaskType;
 	archived: boolean;
 	updatedAt: number;
 }
@@ -69,7 +71,7 @@ const toSegments = (title: string, snip: string) => ({
 	snippet: splitMarkedSnippet(snip)
 });
 
-const TASK_COLUMNS = `t.id, pr.key AS key, t.number, t.status, t.updated_at AS updatedAt, pr.status AS projectStatus`;
+const TASK_COLUMNS = `t.id, pr.key AS key, t.number, t.status, t.type, t.updated_at AS updatedAt, pr.status AS projectStatus`;
 
 /**
  * Pages and tasks matching `rawQuery` (empty results when it has no letter or digit). `type` limits the search to
@@ -115,15 +117,18 @@ export async function searchAll(
 						 ORDER BY bm25(tasks_fts, 4.0, 1.0) LIMIT ?2`
 					)
 					.bind(match, limit)
-					.all<RawHit & { key: string; number: number; status: TaskStatus }>()
+					.all<RawHit & { key: string; number: number; status: TaskStatus; type: TaskType }>()
 					.then((r) => r.results)
 	]);
 
-	const toTask = (r: RawHit & { key: string; number: number; status: TaskStatus }): TaskHit => ({
+	const toTask = (
+		r: RawHit & { key: string; number: number; status: TaskStatus; type: TaskType }
+	): TaskHit => ({
 		id: r.id,
 		key: r.key,
 		number: r.number,
 		status: r.status,
+		type: r.type,
 		archived: r.projectStatus === 'archived',
 		updatedAt: r.updatedAt,
 		...toSegments(r.title, r.snip)
@@ -140,7 +145,7 @@ export async function searchAll(
 				 LIMIT 1`
 			)
 			.bind(ref.key, ref.number)
-			.first<RawHit & { key: string; number: number; status: TaskStatus }>();
+			.first<RawHit & { key: string; number: number; status: TaskStatus; type: TaskType }>();
 		if (row) exact = toTask(row);
 	}
 

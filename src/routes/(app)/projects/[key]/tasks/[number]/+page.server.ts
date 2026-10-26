@@ -40,13 +40,14 @@ import {
 } from '#lib/server/pm/checklist';
 import { taskExtras } from '#lib/server/pm/extras';
 import { listLabels, setTaskLabels } from '#lib/server/pm/labels';
+import { listTeamLabels } from '#lib/server/pm/team-labels';
 import { listMilestones } from '#lib/server/pm/milestones';
 import { pmInvalid, pmOk, pmRefused } from '#lib/server/pm/route';
 import {
 	expectedField,
 	idField,
 	parseCheckText,
-	parseLabelIds,
+	parseLabelSets,
 	PM_LIMITS,
 	PM_MESSAGES
 } from '#lib/server/pm/validation';
@@ -63,8 +64,10 @@ export const load: PageServerLoad = async (event) => {
 		listActiveUsers(db)
 	]);
 	if (!task) error(404, TASK_NOT_FOUND);
-	const [labels, milestones, checklist, extras] = await Promise.all([
+	const [labels, teamLabels, milestones, checklist, extras] = await Promise.all([
 		listLabels(db, project.id),
+		// RB-12: team labels next to the project's own.
+		listTeamLabels(db),
 		listMilestones(db, project.id),
 		listItems(db, task.id),
 		taskExtras(db, project.id, [task.id])
@@ -99,6 +102,7 @@ export const load: PageServerLoad = async (event) => {
 			dueOn: task.dueOn,
 			milestoneId: task.milestoneId,
 			milestoneName: task.milestoneName,
+			type: task.type,
 			labels: extras.get(task.id)?.labels ?? [],
 			createdByName: task.createdByName,
 			createdAt: task.createdAt,
@@ -109,13 +113,25 @@ export const load: PageServerLoad = async (event) => {
 		today: teamToday(),
 		editing: event.url.searchParams.has('edit'),
 		saved: event.url.searchParams.has('saved'),
+		/** RB-12: arrived from Report an issue (`?reported=<labels applied>-<labels asked>`). */
+		reported: reportedNotice(event.url.searchParams.get('reported')),
 		canDelete: canDeleteTask(user, project, task),
 		labels: labels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
+		teamLabels: teamLabels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
 		milestones: milestones.map((m) => ({ id: m.id, name: m.name, status: m.status })),
 		checklist,
 		pmLimits: { steps: PM_LIMITS.checklistPerTask, labels: PM_LIMITS.labelsPerTask }
 	};
 };
+
+/** `?reported=A-B` (A of B labels applied) as the notice text; anything else is no notice. */
+function reportedNotice(raw: string | null): { skipped: number } | null {
+	const m = /^(\d{1,2})-(\d{1,2})$/.exec(raw ?? '');
+	if (!m) return null;
+	const applied = Number(m[1]);
+	const asked = Number(m[2]);
+	return applied <= asked ? { skipped: asked - applied } : null;
+}
 
 /** The project and live task an action works on, read fresh (never from the form). */
 async function taskFromParams(event: RequestEvent) {
@@ -133,7 +149,8 @@ const storedFields = (t: TaskDetail): TaskFields => ({
 	priority: t.priority,
 	assigneeId: t.assigneeId,
 	dueOn: t.dueOn,
-	milestoneId: t.milestoneId
+	milestoneId: t.milestoneId,
+	type: t.type
 });
 
 /** Display names for the conflict screen: active users and (RB-08) the project's milestones. */
@@ -221,7 +238,7 @@ export const actions: Actions = {
 		return refusal(event, result, 'update', submitted, project.id);
 	},
 
-	/** One sidebar field (status, priority, assignee, due date), against the version the page showed. */
+	/** One sidebar field (status, priority, assignee, due date, milestone, type), against the version shown. */
 	patch: async (event) => {
 		const { user, project, task } = await taskFromParams(event);
 		const form = await readFormBody(event.request, LIMITS.formBodyMax);
@@ -266,11 +283,11 @@ export const actions: Actions = {
 
 	// ── RB-08: labels and checklist. None of these touch `tasks.updated_at` (owner decision 8). ─────────────
 
-	/** Replaces the task's label set (at most 10 live labels of this project). */
+	/** Replaces the task's label sets (RB-12: project and team labels, at most 10 live ones together). */
 	labelsSet: async (event) => {
 		const { project, task } = await taskFromParams(event);
 		const form = await readFormBody(event.request);
-		const ids = parseLabelIds(form);
+		const ids = parseLabelSets(form);
 		if (!ids.ok) return pmInvalid('labels', ids.error);
 		const result = await setTaskLabels(event.locals.db, project.id, task.id, ids.value, now());
 		if (result.ok) return pmOk('labels', 'Labels saved.');

@@ -1,7 +1,8 @@
 <!--
 	ViewPicker: the user's own saved views of this project (RB-08) and a form that saves the current filters under a
 	name. A view opens through its own URL (the server checks the owner); the stored filters are only what the server
-	canonicalised. Plain forms: works without JavaScript.
+	canonicalised. Plain forms: works without JavaScript. RB-12: also the Issues page's views (`kind="issues"`, its own
+	action names).
 -->
 <script lang="ts">
 	import { enhance } from '$app/forms';
@@ -17,10 +18,12 @@
 		views,
 		archived,
 		answer,
-		actionFor
+		actionFor,
+		saveAction = 'viewSave',
+		deleteAction = 'viewDelete'
 	}: {
 		base: string;
-		kind: 'list' | 'board';
+		kind: 'list' | 'board' | 'issues';
 		/** The current URL query (the server keeps only the filter keys). */
 		query: string;
 		views: readonly { id: string; name: string; kind: string }[];
@@ -28,6 +31,8 @@
 		answer: PmAnswer | null;
 		/** The action URL that keeps the current view (`?…&/viewSave`). */
 		actionFor: (action: string) => string;
+		saveAction?: string;
+		deleteAction?: string;
 	} = $props();
 
 	let saving = $state(false);
@@ -49,14 +54,14 @@
 				{#each views as v (v.id)}
 					<li>
 						<a href="{base}/views/{v.id}" class="open"
-							><span class="name">{v.name}</span><span class="kind"
-								>{v.kind === 'board' ? 'Board' : 'List'}</span
-							></a
+							><span class="name">{v.name}</span>{#if v.kind !== 'issues'}<span class="kind"
+									>{v.kind === 'board' ? 'Board' : 'List'}</span
+								>{/if}</a
 						>
 						{#if !archived}
 							<form
 								method="POST"
-								action={actionFor('viewDelete')}
+								action={actionFor(deleteAction)}
 								use:enhance={() => {
 									deleting = v.id;
 									return async ({ update }) => {
@@ -78,7 +83,7 @@
 		{#if !archived}
 			<form
 				method="POST"
-				action={actionFor('viewSave')}
+				action={actionFor(saveAction)}
 				class="save"
 				use:enhance={() => {
 					saving = true;

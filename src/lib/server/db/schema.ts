@@ -31,6 +31,7 @@ import {
 	TARGET_KINDS,
 	TASK_PRIORITIES,
 	TASK_STATUSES,
+	TASK_TYPES,
 	USER_ROLES,
 	USER_STATUSES,
 	VIEW_KINDS
@@ -190,7 +191,13 @@ export const tasks = sqliteTable(
 		completedAt: integer('completed_at'),
 		deletedAt: integer('deleted_at'),
 		/** RB-08: at most one milestone of the same project; cleared when the milestone is deleted. */
-		milestoneId: text('milestone_id').references((): AnySQLiteColumn => milestones.id)
+		milestoneId: text('milestone_id').references((): AnySQLiteColumn => milestones.id),
+		/**
+		 * RB-12: Task, Bug, Feature request or Improvement. Migration 0012 adds it with a column CHECK
+		 * (`tasks_type_check`, the TASK_TYPES list); no table CHECK here, so Drizzle never rebuilds `tasks` (and its
+		 * FTS triggers) for it. Not indexed for search: a type change never touches `tasks_fts`.
+		 */
+		type: text('type', { enum: TASK_TYPES }).notNull().default('task')
 	},
 	(t) => [
 		check('tasks_status_check', oneOf(t.status, TASK_STATUSES)),
@@ -204,7 +211,20 @@ export const tasks = sqliteTable(
 		/** RB-09: the calendar's range read of due dates. */
 		index('tasks_due_idx')
 			.on(t.dueOn)
-			.where(sql`${t.deletedAt} is null and ${t.dueOn} is not null`)
+			.where(sql`${t.deletedAt} is null and ${t.dueOn} is not null`),
+		// RB-12 /issues: live-only indexes for the default sorts, the type filter and the reporter filter.
+		index('tasks_live_updated_idx')
+			.on(t.updatedAt, t.id)
+			.where(sql`${t.deletedAt} is null`),
+		index('tasks_live_created_idx')
+			.on(t.createdAt, t.id)
+			.where(sql`${t.deletedAt} is null`),
+		index('tasks_live_type_idx')
+			.on(t.type, t.updatedAt)
+			.where(sql`${t.deletedAt} is null`),
+		index('tasks_created_by_idx')
+			.on(t.createdBy, t.createdAt)
+			.where(sql`${t.deletedAt} is null`)
 	]
 );
 
@@ -254,6 +274,53 @@ export const taskLabels = sqliteTable(
 	(t) => [
 		primaryKey({ columns: [t.taskId, t.labelId] }),
 		index('task_labels_label_idx').on(t.labelId)
+	]
+);
+
+// ── Team labels (RB-12) ─────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Workspace labels, usable on a task of any project (RB-12 D3: a table of their own, so RB-08's project-scoped
+ * `labels` rules stay intact). Admins manage them; any active user applies them. `name_key` is the lower-cased name:
+ * one live team label per name, any case. Soft deleted; links stay but every read filters live labels.
+ */
+export const teamLabels = sqliteTable(
+	'team_labels',
+	{
+		id: text('id').primaryKey(),
+		name: text('name').notNull(),
+		nameKey: text('name_key').notNull(),
+		color: text('color', { enum: LABEL_COLORS }).notNull(),
+		createdBy: text('created_by')
+			.notNull()
+			.references(() => users.id),
+		createdAt: integer('created_at').notNull(),
+		updatedAt: integer('updated_at').notNull(),
+		deletedAt: integer('deleted_at')
+	},
+	(t) => [
+		check('team_labels_color_check', oneOf(t.color, LABEL_COLORS)),
+		uniqueIndex('team_labels_name_uq')
+			.on(t.nameKey)
+			.where(sql`${t.deletedAt} is null`)
+	]
+);
+
+/** Which team labels a task carries; like `task_labels`, unlinking deletes the row. */
+export const taskTeamLabels = sqliteTable(
+	'task_team_labels',
+	{
+		taskId: text('task_id')
+			.notNull()
+			.references(() => tasks.id),
+		teamLabelId: text('team_label_id')
+			.notNull()
+			.references(() => teamLabels.id),
+		createdAt: integer('created_at').notNull()
+	},
+	(t) => [
+		primaryKey({ columns: [t.taskId, t.teamLabelId] }),
+		index('task_team_labels_label_idx').on(t.teamLabelId, t.taskId)
 	]
 );
 
@@ -335,7 +402,11 @@ export const projectColumns = sqliteTable(
 	]
 );
 
-/** A user's own named filter set for one project. `query` is only ever the output of canonicalizeQuery. */
+/**
+ * A user's own named filter set: of one project (`list`, `board`), or (RB-12) of the cross-project Issues page
+ * (`issues`, no project). `query` is only ever the output of canonicalizeQuery. Migration 0012 rebuilt the table to
+ * make `project_id` nullable; the table CHECK ties the kind to the scope.
+ */
 export const savedViews = sqliteTable(
 	'saved_views',
 	{
@@ -343,9 +414,7 @@ export const savedViews = sqliteTable(
 		userId: text('user_id')
 			.notNull()
 			.references(() => users.id),
-		projectId: text('project_id')
-			.notNull()
-			.references(() => projects.id),
+		projectId: text('project_id').references(() => projects.id),
 		name: text('name').notNull(),
 		kind: text('kind', { enum: VIEW_KINDS }).notNull(),
 		query: text('query').notNull(),
@@ -355,9 +424,14 @@ export const savedViews = sqliteTable(
 	},
 	(t) => [
 		check('saved_views_kind_check', oneOf(t.kind, VIEW_KINDS)),
-		uniqueIndex('saved_views_user_project_name_uq')
+		check('saved_views_scope_check', sql`(${t.kind} = 'issues') = (${t.projectId} is null)`),
+		// SQLite treats NULLs as distinct in a unique index, so the issues scope needs an index of its own.
+		uniqueIndex('saved_views_project_name_uq')
 			.on(t.userId, t.projectId, t.name)
-			.where(sql`${t.deletedAt} is null`)
+			.where(sql`${t.deletedAt} is null and ${t.projectId} is not null`),
+		uniqueIndex('saved_views_issues_name_uq')
+			.on(t.userId, t.name)
+			.where(sql`${t.deletedAt} is null and ${t.projectId} is null`)
 	]
 );
 

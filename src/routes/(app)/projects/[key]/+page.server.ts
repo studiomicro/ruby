@@ -15,9 +15,11 @@ import {
 } from '#lib/server/tasks/validation';
 import { now } from '#lib/server/util';
 import { bulkUpdate } from '#lib/server/pm/bulk';
+import { bulkThrottled } from '#lib/server/pm/bulk-throttle';
 import { getColumns } from '#lib/server/pm/columns';
 import { taskExtras, withExtras } from '#lib/server/pm/extras';
 import { listLabels } from '#lib/server/pm/labels';
+import { listTeamLabels } from '#lib/server/pm/team-labels';
 import { listMilestones } from '#lib/server/pm/milestones';
 import { canonicalizeQuery } from '#lib/server/pm/query';
 import { pmInvalid, pmOk, pmRefused } from '#lib/server/pm/route';
@@ -44,16 +46,18 @@ export const load: PageServerLoad = async (event) => {
 	const sort = parseSort(params);
 	const page = parsePage(params);
 	const db = event.locals.db;
-	const [users, labels, milestones, views, columns] = await Promise.all([
+	const [users, labels, teamLabels, milestones, views, columns] = await Promise.all([
 		listActiveUsers(db),
 		listLabels(db, project.id),
+		listTeamLabels(db),
 		listMilestones(db, project.id),
 		listViews(db, user.id, project.id),
 		view === 'board' ? getColumns(db, project.id) : null
 	]);
-	// RB-08: label and milestone ids that are not live in this project are dropped from the filter.
+	// RB-08: label and milestone ids that are not live in this project are dropped from the filter (RB-12: team
+	// labels count as live in every project).
 	const parsed = parseFilters(params);
-	const labelIds = new Set(labels.map((l) => l.id));
+	const labelIds = new Set([...labels, ...teamLabels].map((l) => l.id));
 	const m = parsed.milestone;
 	const filters = {
 		...parsed,
@@ -83,6 +87,7 @@ export const load: PageServerLoad = async (event) => {
 		list: list ? { ...list, rows: withExtras(list.rows, extras) } : null,
 		board: board ? board.map((c) => ({ ...c, tasks: withExtras(c.tasks, extras) })) : null,
 		labels: labels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
+		teamLabels: teamLabels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
 		milestones: milestones.map((x) => ({ id: x.id, name: x.name, status: x.status })),
 		views,
 		columns: columns?.columns ?? null
@@ -118,6 +123,9 @@ export const actions: Actions = {
 	 */
 	bulk: async (event) => {
 		const { user, project } = await projectFromParams(event);
+		const at = now();
+		const throttled = await bulkThrottled(event, user, at);
+		if (throttled) return throttled;
 		const form = await readFormBody(event.request, 32 * 1024);
 		const parsed = parseBulk(form);
 		if (!parsed.ok)
@@ -130,7 +138,7 @@ export const actions: Actions = {
 			project.id,
 			parsed.taskIds,
 			parsed.changes,
-			now()
+			at
 		);
 		if (!result.ok) return pmRefused('bulk', result, PROJECT_NOT_FOUND);
 		const n = result.updated;

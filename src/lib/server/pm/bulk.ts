@@ -3,17 +3,19 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import type { SessionUser } from '../auth/session';
 import type { Db } from '../db';
 import { batchAssert, isBatchAssertFailure } from '../db/assert';
-import { notifications, reminders, taskLabels, tasks } from '../db/schema';
+import { notifications, reminders, taskLabels, tasks, taskTeamLabels } from '../db/schema';
 import { POSITION_STEP } from '../tasks/position';
 import { completedAtFor, milestoneAssignable, projectActive } from '../tasks/repo';
 import { holds, projectRefusal, type PmWrite } from './common';
+import { liveLabelCount } from './team-labels';
 import { PM_LIMITS, PM_MESSAGES, type BulkChanges } from './validation';
 
 /**
- * Bulk edit of up to 100 tasks of one project (RB-08) in one `db.batch`, all or nothing. The first item asserts
- * that every id is a live task of this project, the project is active and every referenced row (assignee,
- * milestone, labels) is valid; a failure rolls the batch back and nothing is written. Bulk is last-writer-wins:
- * there is no per-task version check (the UI says so). The ids are bound once as JSON (D1's 100-parameter limit).
+ * Bulk edit of up to 100 tasks in one `db.batch`, all or nothing: of one project (RB-08, `bulkUpdate`) or across
+ * projects (RB-12, `issuesBulkUpdate`), through one core. The first item asserts that every id is a live task (of
+ * this project, or of any active live project) and every referenced row (assignee, milestone, labels) is valid; a
+ * failure rolls the batch back and nothing is written. Bulk is last-writer-wins: there is no per-task version check
+ * (the UI says so). The ids are bound once as JSON (D1's 100-parameter limit).
  */
 
 type Actor = Pick<SessionUser, 'id'>;
@@ -21,55 +23,119 @@ type Actor = Pick<SessionUser, 'id'>;
 /** SQL: a random version-4 UUID per row (a notification id written by a set-based INSERT). */
 const randomUuid = sql`lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6)))`;
 
-export async function bulkUpdate(
+export type BulkResult = PmWrite<{
+	updated: number;
+	labelCapped: number;
+	/** Tasks that would have notified their new assignee beyond the first PM_LIMITS.bulkNotifyMax (0: none). */
+	notifySkipped: number;
+}>;
+
+/** One project's bulk edit (RB-08): every id must be a live task of this project, and the project active. */
+export function bulkUpdate(
 	db: Db,
 	actor: Actor,
 	projectId: string,
 	taskIds: readonly string[],
 	changes: BulkChanges,
 	at: number
-): Promise<
-	PmWrite<{
-		updated: number;
-		labelCapped: number;
-		/** Tasks that would have notified their new assignee beyond the first PM_LIMITS.bulkNotifyMax (0: none). */
-		notifySkipped: number;
-	}>
-> {
+): Promise<BulkResult> {
+	return bulkCore(db, actor, projectId, taskIds, changes, at);
+}
+
+/**
+ * The Issues page's bulk edit (RB-12 D6): tasks of any projects, each of which must be active and live. Milestones
+ * and project labels are refused (they belong to one project). A missing or deleted id answers `not_found`, a task
+ * of an archived project `archived`; either way nothing is written.
+ */
+export function issuesBulkUpdate(
+	db: Db,
+	actor: Actor,
+	taskIds: readonly string[],
+	changes: BulkChanges,
+	at: number
+): Promise<BulkResult> {
+	if (
+		changes.milestoneId !== undefined ||
+		changes.addLabelId !== undefined ||
+		changes.removeLabelId !== undefined
+	)
+		return Promise.resolve({ ok: false, reason: 'invalid', message: PM_MESSAGES.stale });
+	return bulkCore(db, actor, null, taskIds, changes, at);
+}
+
+/** Answer of an Issues bulk whose ids are all live tasks, some in archived projects. */
+export const BULK_ARCHIVED = 'Some selected tasks are in archived projects.';
+
+async function bulkCore(
+	db: Db,
+	actor: Actor,
+	projectId: string | null,
+	taskIds: readonly string[],
+	changes: BulkChanges,
+	at: number
+): Promise<BulkResult> {
 	if (taskIds.length === 0 || taskIds.length > PM_LIMITS.bulkMax)
 		return { ok: false, reason: 'invalid', message: PM_MESSAGES.bulkTooMany };
 	const ids = JSON.stringify(taskIds);
-	/** SQL over alias `t`: one of the selected ids, a live task of this project. */
+	/** SQL over alias `t`: one of the selected ids, a live task of this project (or of an active live project). */
 	const selected = () =>
-		sql`t.project_id = ${projectId} and t.deleted_at is null and t.id in (select value from json_each(${ids}))`;
+		projectId !== null
+			? sql`t.project_id = ${projectId} and t.deleted_at is null and t.id in (select value from json_each(${ids}))`
+			: sql`t.deleted_at is null and t.id in (select value from json_each(${ids})) and exists (select 1 from projects sp where sp.id = t.project_id and sp.status = 'active' and sp.deleted_at is null)`;
 	const selectedTasks = and(
-		eq(tasks.projectId, projectId),
+		projectId !== null
+			? eq(tasks.projectId, projectId)
+			: sql`exists (select 1 from projects sp where sp.id = ${tasks.projectId} and sp.status = 'active' and sp.deleted_at is null)`,
 		isNull(tasks.deletedAt),
 		sql`${tasks.id} in (select value from json_each(${ids}))`
 	);
 
-	const { status, priority, assigneeId, milestoneId, dueOn, addLabelId, removeLabelId } = changes;
+	const {
+		status,
+		priority,
+		type,
+		assigneeId,
+		milestoneId,
+		dueOn,
+		addLabelId,
+		removeLabelId,
+		addTeamLabelId,
+		removeTeamLabelId
+	} = changes;
+	const scoped = projectId ?? '';
 	const checks = {
 		tasks: sql`(select count(*) from tasks t where ${selected()}) = ${taskIds.length}`,
 		assigneeId: assigneeId
 			? sql`exists (select 1 from users u where u.id = ${assigneeId} and u.status = 'active')`
 			: null,
-		milestoneId: milestoneId ? milestoneAssignable(projectId, milestoneId) : null,
+		milestoneId: milestoneId ? milestoneAssignable(scoped, milestoneId) : null,
 		addLabelId: addLabelId
-			? sql`exists (select 1 from labels l where l.id = ${addLabelId} and l.project_id = ${projectId} and l.deleted_at is null)`
+			? sql`exists (select 1 from labels l where l.id = ${addLabelId} and l.project_id = ${scoped} and l.deleted_at is null)`
 			: null,
 		removeLabelId: removeLabelId
-			? sql`exists (select 1 from labels l where l.id = ${removeLabelId} and l.project_id = ${projectId})`
+			? sql`exists (select 1 from labels l where l.id = ${removeLabelId} and l.project_id = ${scoped})`
+			: null,
+		addTeamLabelId: addTeamLabelId
+			? sql`exists (select 1 from team_labels tl where tl.id = ${addTeamLabelId} and tl.deleted_at is null)`
+			: null,
+		removeTeamLabelId: removeTeamLabelId
+			? sql`exists (select 1 from team_labels tl where tl.id = ${removeTeamLabelId})`
 			: null
 	};
-	const guard = [projectActive(projectId), ...Object.values(checks).filter((c): c is SQL => !!c)];
+	const guard = [
+		...(projectId !== null ? [projectActive(projectId)] : []),
+		...Object.values(checks).filter((c): c is SQL => !!c)
+	];
 
 	const fields: Record<string, unknown> = {};
 	if (priority !== undefined) fields.priority = priority;
+	if (type !== undefined) fields.type = type;
 	if (assigneeId !== undefined) fields.assigneeId = assigneeId;
 	if (milestoneId !== undefined) fields.milestoneId = milestoneId;
 	if (dueOn !== undefined) fields.dueOn = dueOn;
 	const bump = sql`max(${at}, ${tasks.updatedAt} + 1)`;
+	/** SQL: the task has room for one more label (project and team labels count together; owner decision O6). */
+	const underCap = sql`${liveLabelCount(tasks.id)} < ${PM_LIMITS.labelsPerTask}`;
 
 	const items: BatchItem<'sqlite'>[] = [];
 	/** Index (in the batch results) of the count of tasks that would notify, when an assignee is set. */
@@ -121,8 +187,9 @@ export async function bulkUpdate(
 		// Tasks entering the column go to its bottom in ascending number order. Both the base (the column's bottom
 		// without the selected tasks) and the rank (by number among the selected ids) ignore the rows this
 		// statement changes, so the result does not depend on the order SQLite visits them.
-		const base = sql`(select coalesce(max(t.position), 0) from tasks t where t.project_id = ${projectId} and t.status = ${status} and t.deleted_at is null and t.id not in (select value from json_each(${ids})))`;
-		const rank = sql`(select count(*) from tasks t where ${selected()} and t.number <= ${tasks.number})`;
+		// RB-12: across projects each task goes to the bottom of its own project's column, ranked within that project.
+		const base = sql`(select coalesce(max(t.position), 0) from tasks t where t.project_id = ${tasks.projectId} and t.status = ${status} and t.deleted_at is null and t.id not in (select value from json_each(${ids})))`;
+		const rank = sql`(select count(*) from tasks t where ${selected()} and t.project_id = ${tasks.projectId} and t.number <= ${tasks.number})`;
 		items.push(
 			db
 				.update(tasks)
@@ -177,12 +244,7 @@ export async function bulkUpdate(
 							createdAt: sql`${at}`.as('createdAt')
 						})
 						.from(tasks)
-						.where(
-							and(
-								selectedTasks,
-								sql`(select count(*) from task_labels tl join labels l on l.id = tl.label_id where tl.task_id = ${tasks.id} and l.deleted_at is null) < ${PM_LIMITS.labelsPerTask}`
-							)
-						)
+						.where(and(selectedTasks, underCap))
 				)
 				.onConflictDoNothing()
 		);
@@ -197,12 +259,48 @@ export async function bulkUpdate(
 					)
 				)
 		);
-	// How many selected tasks still lack the added label: those already at the 10-label cap.
+	if (addTeamLabelId)
+		items.push(
+			db
+				.insert(taskTeamLabels)
+				.select(
+					db
+						.select({
+							taskId: tasks.id,
+							teamLabelId: sql`${addTeamLabelId}`.as('teamLabelId'),
+							createdAt: sql`${at}`.as('createdAt')
+						})
+						.from(tasks)
+						.where(and(selectedTasks, underCap))
+				)
+				.onConflictDoNothing()
+		);
+	if (removeTeamLabelId)
+		items.push(
+			db
+				.delete(taskTeamLabels)
+				.where(
+					and(
+						eq(taskTeamLabels.teamLabelId, removeTeamLabelId),
+						sql`${taskTeamLabels.taskId} in (select t.id from tasks t where ${selected()})`
+					)
+				)
+		);
+	// How many selected tasks still lack an added label: those already at the 10-label cap.
+	const lacks = [
+		addLabelId
+			? sql`not exists (select 1 from task_labels tl where tl.task_id = t.id and tl.label_id = ${addLabelId})`
+			: null,
+		addTeamLabelId
+			? sql`not exists (select 1 from task_team_labels tt where tt.task_id = t.id and tt.team_label_id = ${addTeamLabelId})`
+			: null
+	].filter((c): c is SQL => !!c);
 	const capped = db
 		.select({
-			n: addLabelId
-				? sql<number>`(select count(*) from tasks t where ${selected()} and not exists (select 1 from task_labels tl where tl.task_id = t.id and tl.label_id = ${addLabelId}))`
-				: sql<number>`0`
+			n:
+				lacks.length > 0
+					? sql<number>`(select count(*) from tasks t where ${selected()} and (${sql.join(lacks, sql` or `)}))`
+					: sql<number>`0`
 		})
 		.from(sql`(select 1)`);
 
@@ -224,10 +322,22 @@ export async function bulkUpdate(
 	} catch (e) {
 		if (!isBatchAssertFailure(e)) throw e;
 	}
-	const refused = await projectRefusal(db, projectId);
-	if (refused) return refused;
-	if (!(await holds(db, checks.tasks)))
-		return { ok: false, reason: 'not_found', message: PM_MESSAGES.bulkGone };
+	if (projectId !== null) {
+		const refused = await projectRefusal(db, projectId);
+		if (refused) return refused;
+	}
+	if (!(await holds(db, checks.tasks))) {
+		// Across projects: every id is a live task of a live project, so some project is archived (409, not 404).
+		const allLive =
+			projectId === null &&
+			(await holds(
+				db,
+				sql`(select count(*) from tasks t join projects lp on lp.id = t.project_id where t.deleted_at is null and lp.deleted_at is null and t.id in (select value from json_each(${ids}))) = ${taskIds.length}`
+			));
+		return allLive
+			? { ok: false, reason: 'archived', message: BULK_ARCHIVED }
+			: { ok: false, reason: 'not_found', message: PM_MESSAGES.bulkGone };
+	}
 	const errors: Record<string, string> = {};
 	if (checks.assigneeId && !(await holds(db, checks.assigneeId)))
 		errors.assigneeId = 'Choose an active teammate or nobody.';
@@ -237,5 +347,9 @@ export async function bulkUpdate(
 		errors.addLabelId = PM_MESSAGES.labelUnknown;
 	if (checks.removeLabelId && !(await holds(db, checks.removeLabelId)))
 		errors.removeLabelId = PM_MESSAGES.labelUnknown;
+	if (checks.addTeamLabelId && !(await holds(db, checks.addTeamLabelId)))
+		errors.addTeamLabelId = PM_MESSAGES.teamLabelUnknown;
+	if (checks.removeTeamLabelId && !(await holds(db, checks.removeTeamLabelId)))
+		errors.removeTeamLabelId = PM_MESSAGES.teamLabelUnknown;
 	return { ok: false, reason: 'invalid', message: PM_MESSAGES.stale, errors };
 }

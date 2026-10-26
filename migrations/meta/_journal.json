@@ -43,6 +43,13 @@
       "when": 1793010875234,
       "tag": "0011_calendar_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793017818171,
+      "tag": "0012_issues_labels",
+      "breakpoints": true
     }
   ]
 }

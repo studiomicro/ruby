@@ -7,6 +7,7 @@
 	import Priority from '#lib/ui/tasks/Priority.svelte';
 	import StatusBadge from '#lib/ui/tasks/StatusBadge.svelte';
 	import LabelChip from '#lib/ui/pm/LabelChip.svelte';
+	import TypeBadge from '#lib/ui/issues/TypeBadge.svelte';
 
 	let { data } = $props();
 	const sections = $derived([
@@ -54,6 +55,7 @@
 									><span class="sr-only">{task.projectKey}-{task.number}: </span>{task.title}</a
 								>
 								<span class="meta">
+									<TypeBadge type={task.type} quiet />
 									<StatusBadge status={task.status} />
 									<Priority priority={task.priority} />
 									<Due dueOn={task.dueOn} status={task.status} today={data.today} empty="" />
@@ -61,7 +63,11 @@
 									{#if task.milestoneName}<span class="milestone"
 											><span class="sr-only">Milestone: </span>◆ {task.milestoneName}</span
 										>{/if}
-									{#each task.labels as l (l.id)}<LabelChip name={l.name} color={l.color} />{/each}
+									{#each task.labels as l (l.id)}<LabelChip
+											name={l.name}
+											color={l.color}
+											scope={l.scope}
+										/>{/each}
 								</span>
 							</li>
 						{/each}

@@ -34,7 +34,8 @@ const DEFAULTS = {
 	priority: 'none',
 	assigneeId: null,
 	dueOn: null,
-	milestoneId: null
+	milestoneId: null,
+	type: 'task'
 } as const;
 
 describe('project keys', () => {

@@ -1,4 +1,4 @@
-import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS } from '#lib/shared/enums';
+import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, TASK_TYPE_LABELS } from '#lib/shared/enums';
 import type { TaskDetail } from './repo';
 import type { TaskField, TaskFields } from './validation';
 
@@ -21,7 +21,8 @@ const LABELS: Record<TaskField, string> = {
 	priority: 'Priority',
 	assigneeId: 'Assignee',
 	dueOn: 'Due date',
-	milestoneId: 'Milestone'
+	milestoneId: 'Milestone',
+	type: 'Type'
 };
 
 function display(
@@ -35,6 +36,8 @@ function display(
 			return TASK_STATUS_LABELS[value as TaskFields['status']];
 		case 'priority':
 			return TASK_PRIORITY_LABELS[value as TaskFields['priority']];
+		case 'type':
+			return TASK_TYPE_LABELS[value as TaskFields['type']];
 		case 'assigneeId':
 			return names.get(value) ?? 'A former user';
 		case 'milestoneId':

@@ -42,6 +42,20 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
 	urgent: 'Urgent'
 };
 
+/**
+ * RB-12: what kind of work a task is (owner decision O2: a fixed list). Every task has one; `task` is the default
+ * and the quiet one (board cards show no badge for it). The UI always shows an icon plus the text, never colour.
+ */
+export const TASK_TYPES = ['task', 'bug', 'feature_request', 'improvement'] as const;
+export type TaskType = (typeof TASK_TYPES)[number];
+
+export const TASK_TYPE_LABELS: Record<TaskType, string> = {
+	task: 'Task',
+	bug: 'Bug',
+	feature_request: 'Feature request',
+	improvement: 'Improvement'
+};
+
 /** What a comment or attachment hangs on. */
 export const TARGET_KINDS = ['task', 'page'] as const;
 export type TargetKind = (typeof TARGET_KINDS)[number];
@@ -219,8 +233,8 @@ export type LabelColor = (typeof LABEL_COLORS)[number];
 export const MILESTONE_STATUSES = ['open', 'closed'] as const;
 export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
 
-/** What a saved view opens: the list or the board. */
-export const VIEW_KINDS = ['list', 'board'] as const;
+/** What a saved view opens: a project's list or board, or (RB-12) the cross-project Issues page. */
+export const VIEW_KINDS = ['list', 'board', 'issues'] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
 
 // ── Time off (RB-06; docs/features/rb-06-time-off/PRD.md) ──────────────────────────────────────────────────

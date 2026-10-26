@@ -9,7 +9,12 @@ public, so no real id or hostname is committed: see "Deployment values" below. N
 
 `wrangler.jsonc` and `workers/jobs/wrangler.jsonc` hold zero placeholders (account id, D1 `database_id`, `ruby.example.invalid` host, Access team
 domain and AUD, `ACCESS_DISABLED` = `""`). The real values come from the environment or the gitignored `.deploy.env`
-(copy `.deploy.env.example`, `chmod 600`; the environment wins):
+(copy `.deploy.env.example`, `chmod 600`; the environment wins). On macOS the file can instead live encrypted in the
+Keychain: `security add-generic-password -U -a ruby -s ruby-deploy-env -w "$(base64 < .deploy.env | tr -d '\n')"`, then
+delete `.deploy.env`; `npm run deploy` reads the Keychain item when the file is absent (`RUBY_KEYCHAIN_SERVICE`
+overrides the service name). To edit a value, decode it with
+`security find-generic-password -s ruby-deploy-env -w | base64 -d > .deploy.env`, change it, store it again and delete the
+file:
 
 | Variable                  | Value                                                                   |
 | ------------------------- | ----------------------------------------------------------------------- |

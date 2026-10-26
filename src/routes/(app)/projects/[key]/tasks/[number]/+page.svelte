@@ -19,6 +19,8 @@
 	import TaskChecklist from '#lib/ui/pm/TaskChecklist.svelte';
 	import TaskLabelsField from '#lib/ui/pm/TaskLabelsField.svelte';
 	import ReminderPanel from '#lib/ui/calendar/ReminderPanel.svelte';
+	import TypeBadge from '#lib/ui/issues/TypeBadge.svelte';
+	import { TYPE_OPTIONS } from '#lib/ui/issues/options';
 
 	let { data, form } = $props();
 
@@ -68,6 +70,7 @@
 <header class="task-header">
 	<h1><span class="ref">{data.ref}</span> {data.task.title}</h1>
 	<div class="chips">
+		<TypeBadge type={data.task.type} />
 		<StatusBadge status={data.task.status} />
 		<Priority priority={data.task.priority} />
 	</div>
@@ -75,6 +78,12 @@
 
 <div class="banners">
 	<Banner tone="success" message={data.saved && !form ? 'Task saved.' : null} />
+	<Banner
+		tone="success"
+		message={data.reported && !form
+			? `Reported ${data.ref}.${data.reported.skipped > 0 ? ` ${data.reported.skipped} label${data.reported.skipped === 1 ? ' was' : 's were'} deleted meanwhile and not applied.` : ''}`
+			: null}
+	/>
 	<Banner tone="error" message={formError} />
 </div>
 
@@ -180,6 +189,8 @@
 	<aside class="fields" aria-label="Task fields">
 		{#if archived}
 			<dl>
+				<dt>Type</dt>
+				<dd><TypeBadge type={data.task.type} /></dd>
 				<dt>Status</dt>
 				<dd><StatusBadge status={data.task.status} /></dd>
 				<dt>Priority</dt>
@@ -197,6 +208,7 @@
 					{#each data.task.labels as l (l.id)}<LabelChip
 							name={l.name}
 							color={l.color}
+							scope={l.scope}
 						/>{:else}None{/each}
 				</dd>
 			</dl>
@@ -219,6 +231,15 @@
 				</form>
 			{/snippet}
 
+			{#snippet typeControl()}
+				<Select
+					label="Type"
+					name="value"
+					options={TYPE_OPTIONS}
+					value={data.task.type}
+					error={errors.type}
+				/>
+			{/snippet}
 			{#snippet statusControl()}
 				<Select
 					label="Status"
@@ -261,6 +282,7 @@
 				{/if}
 			{/snippet}
 
+			{@render patchForm('type', patched === 'type', typeControl)}
 			{@render patchForm('status', patched === 'status', statusControl)}
 			{@render patchForm('priority', patched === 'priority', priorityControl)}
 			{@render patchForm('assigneeId', patched === 'assigneeId', assigneeControl)}
@@ -284,6 +306,7 @@
 			<TaskLabelsField
 				current={data.task.labels}
 				labels={data.labels}
+				teamLabels={data.teamLabels}
 				{archived}
 				answer={answerFor(form, 'labels')}
 				settingsHref="{base}/settings"
@@ -292,11 +315,10 @@
 		{/if}
 
 		<dl class="facts">
+			<dt>Reporter</dt>
+			<dd>{data.task.createdByName ?? 'A former user'}</dd>
 			<dt>Created</dt>
-			<dd>
-				<LocalTime at={data.task.createdAt} withTime /> by {data.task.createdByName ??
-					'a former user'}
-			</dd>
+			<dd><LocalTime at={data.task.createdAt} withTime /></dd>
 			<dt>Updated</dt>
 			<dd><LocalTime at={data.task.updatedAt} withTime /></dd>
 			{#if data.task.completedAt}

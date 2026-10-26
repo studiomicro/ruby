@@ -284,7 +284,10 @@ describe('access', () => {
 		);
 		expect(status(missing)).toBe(404);
 		expect((ms as { body: unknown }).body).toEqual((missing as { body: unknown }).body);
-		expect((await setTaskLabels(db, w.ops.id, t.id, [foreignLabel], 1)).ok).toBe(false);
+		expect(
+			(await setTaskLabels(db, w.ops.id, t.id, { labelIds: [foreignLabel], teamLabelIds: [] }, 1))
+				.ok
+		).toBe(false);
 		expect(
 			(await db.select().from(labels).where(eq(labels.id, foreignLabel)).get())?.deletedAt
 		).toBeNull();
@@ -362,8 +365,13 @@ describe('labels', () => {
 		const t = await seedTask(db, w.admin, w.ops);
 		const ids = [];
 		for (let i = 0; i < 11; i++) ids.push(await label(w.ops.id, w.member, `L${i}`));
-		expect((await setTaskLabels(db, w.ops.id, t.id, ids.slice(0, 10), 1)).ok).toBe(true);
-		expect(await setTaskLabels(db, w.ops.id, t.id, ids, 2)).toMatchObject({
+		expect(
+			(await setTaskLabels(db, w.ops.id, t.id, { labelIds: ids.slice(0, 10), teamLabelIds: [] }, 1))
+				.ok
+		).toBe(true);
+		expect(
+			await setTaskLabels(db, w.ops.id, t.id, { labelIds: ids, teamLabelIds: [] }, 2)
+		).toMatchObject({
 			ok: false,
 			reason: 'limit'
 		});
@@ -373,12 +381,16 @@ describe('labels', () => {
 			.sort();
 		expect(before).toEqual(ids.slice(0, 10).sort());
 		const foreign = await label(w.other.id, w.member, 'Foreign');
-		expect(await setTaskLabels(db, w.ops.id, t.id, [ids[0]!, foreign], 3)).toMatchObject({
+		expect(
+			await setTaskLabels(db, w.ops.id, t.id, { labelIds: [ids[0]!, foreign], teamLabelIds: [] }, 3)
+		).toMatchObject({
 			ok: false,
 			reason: 'invalid'
 		});
 		await deleteLabel(db, w.admin, w.ops.id, ids[10]!, 4);
-		expect(await setTaskLabels(db, w.ops.id, t.id, [ids[10]!], 5)).toMatchObject({
+		expect(
+			await setTaskLabels(db, w.ops.id, t.id, { labelIds: [ids[10]!], teamLabelIds: [] }, 5)
+		).toMatchObject({
 			ok: false,
 			reason: 'invalid'
 		});
@@ -389,7 +401,9 @@ describe('labels', () => {
 		expect(after).toEqual(before);
 		// Labels never bump the task's version.
 		const row = await taskRow(db, t.id);
-		expect((await setTaskLabels(db, w.ops.id, t.id, [ids[1]!], 6)).ok).toBe(true);
+		expect(
+			(await setTaskLabels(db, w.ops.id, t.id, { labelIds: [ids[1]!], teamLabelIds: [] }, 6)).ok
+		).toBe(true);
 		expect((await taskRow(db, t.id))?.updatedAt).toBe(row?.updatedAt);
 		// A deleted label leaves cards and filters.
 		await deleteLabel(db, w.admin, w.ops.id, ids[1]!, 7);
@@ -816,8 +830,8 @@ describe('filters and saved views', () => {
 		const a = await seedTask(db, w.admin, w.ops, { status: 'todo', milestoneId: m });
 		const b = await seedTask(db, w.admin, w.ops, { status: 'done' });
 		const c = await seedTask(db, w.admin, w.ops, { status: 'todo' });
-		await setTaskLabels(db, w.ops.id, a.id, [bug], 1);
-		await setTaskLabels(db, w.ops.id, b.id, [ux], 1);
+		await setTaskLabels(db, w.ops.id, a.id, { labelIds: [bug], teamLabelIds: [] }, 1);
+		await setTaskLabels(db, w.ops.id, b.id, { labelIds: [ux], teamLabelIds: [] }, 1);
 		const numbers = async (q: string) => {
 			const r = (await run(
 				view.load,
@@ -1100,7 +1114,7 @@ describe('bulk edit', () => {
 		expect(await assignedNotifications(db, w.member.id)).toHaveLength(0);
 		const ids = [];
 		for (let i = 0; i < 11; i++) ids.push(await label(w.ops.id, w.member, `L${i}`));
-		await setTaskLabels(db, w.ops.id, a.id, ids.slice(0, 10), 1);
+		await setTaskLabels(db, w.ops.id, a.id, { labelIds: ids.slice(0, 10), teamLabelIds: [] }, 1);
 		const r = await bulkUpdate(
 			db,
 			w.member,
@@ -1183,12 +1197,12 @@ describe('cross-cutting', () => {
 		const l2 = await label(big.id, w.admin, 'A');
 		for (let i = 0; i < 5; i++) {
 			const t = await seedTask(db, w.admin, small);
-			await setTaskLabels(db, small.id, t.id, [l1], 1);
+			await setTaskLabels(db, small.id, t.id, { labelIds: [l1], teamLabelIds: [] }, 1);
 			await addItem(db, w.admin, small.id, t.id, 'x', 1);
 		}
 		for (let i = 0; i < 120; i++) {
 			const t = await seedTask(db, w.admin, big, { status: i % 3 ? 'todo' : 'done' });
-			await setTaskLabels(db, big.id, t.id, [l2], 1);
+			await setTaskLabels(db, big.id, t.id, { labelIds: [l2], teamLabelIds: [] }, 1);
 			await addItem(db, w.admin, big.id, t.id, 'x', 1);
 		}
 		const counted = async (key: string, q: string) => {
@@ -1234,7 +1248,7 @@ describe('cross-cutting', () => {
 		const results = [
 			await createLabel(db, w.admin, w.ops.id, { name: 'New', nameKey: 'new', color: 'red' }, 2),
 			await deleteLabel(db, w.admin, w.ops.id, l, 2),
-			await setTaskLabels(db, w.ops.id, t.id, [l], 2),
+			await setTaskLabels(db, w.ops.id, t.id, { labelIds: [l], teamLabelIds: [] }, 2),
 			await addItem(db, w.admin, w.ops.id, t.id, 'y', 2),
 			await toggleItem(db, w.admin, w.ops.id, t.id, item.id, true, 2),
 			await editItem(db, w.ops.id, t.id, item.id, 'z', 1, 2),
@@ -1296,7 +1310,7 @@ describe('cross-cutting', () => {
 		const m = await milestone(w.ops.id, w.admin, 'Launch');
 		const l = await label(w.ops.id, w.admin, 'Bug');
 		const t = await seedTask(db, w.admin, w.ops, { assigneeId: w.member.id, milestoneId: m });
-		await setTaskLabels(db, w.ops.id, t.id, [l], 1);
+		await setTaskLabels(db, w.ops.id, t.id, { labelIds: [l], teamLabelIds: [] }, 1);
 		const r = (await run(myTasks.load, await req(w.member, '/my-tasks'))) as {
 			groups: { none: { milestoneName: string | null; labels: { name: string }[] }[] };
 		};
@@ -1359,6 +1373,8 @@ describe('migration 0010', () => {
 				'tasks_fts_ai',
 				'tasks_fts_au'
 			]);
+			// RB-12: today's search reads `tasks.type` (0012); the triggers above are the 0001 ones either way.
+			await applyMigration(old.db, '0012_issues_labels.sql');
 			expect((await searchAll(odb, 'lighthouse', { type: 'tasks' })).tasks).toHaveLength(1);
 			await old.db.prepare(`UPDATE tasks SET title = 'Renamed beacon task' WHERE id = 't1'`).run();
 			expect((await searchAll(odb, 'beacon', { type: 'tasks' })).tasks).toHaveLength(1);

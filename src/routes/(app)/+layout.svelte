@@ -10,6 +10,7 @@
 		moreItems,
 		NAV_SECTIONS,
 		NOTIFICATIONS,
+		REPORT_ISSUE,
 		SEARCH,
 		TAB_ITEMS,
 		visibleTo
@@ -34,6 +35,8 @@
 
 	function isCurrent(href: string): boolean {
 		const path = page.url.pathname;
+		// RB-12: the Report form lives under /issues but is its own entry, not the Issues list.
+		if (path === REPORT_ISSUE.href) return href === REPORT_ISSUE.href;
 		return href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`);
 	}
 	const moreCurrent = $derived(sheetItems.some((item) => isCurrent(item.href)));
@@ -70,6 +73,15 @@
 		<div class="side-head">
 			<a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Ruby</a>
 			<div class="side-actions">
+				<a
+					href={REPORT_ISSUE.href}
+					class="icon-link"
+					aria-label={REPORT_ISSUE.label}
+					title={REPORT_ISSUE.label}
+					aria-current={isCurrent(REPORT_ISSUE.href) ? 'page' : undefined}
+				>
+					<Icon name={REPORT_ISSUE.icon} />
+				</a>
 				<a
 					href={SEARCH.href}
 					class="icon-link"

@@ -342,7 +342,8 @@ describe('merge check: throttle.ts', () => {
 		expect(THROTTLE_MINUTE_MS).toBe(60 * 1000);
 		expect(THROTTLE_MAX_ATTEMPTS).toBe(20);
 		expect(CLIENT_MAX_ATTEMPTS).toBe(100);
-		expect([...THROTTLE_SCOPES]).toEqual([
+		// Later features append their own scopes after these (RB-12: `issue-report`).
+		expect([...THROTTLE_SCOPES].slice(0, 11)).toEqual([
 			'sign-in',
 			'setup',
 			'invite-accept',

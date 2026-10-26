@@ -1,8 +1,10 @@
 import {
 	TASK_PRIORITIES,
 	TASK_STATUSES,
+	TASK_TYPES,
 	type TaskPriority,
-	type TaskStatus
+	type TaskStatus,
+	type TaskType
 } from '#lib/shared/enums';
 import { cleanText } from '#lib/shared/text';
 import { isValidDueOn } from './dates';
@@ -75,6 +77,7 @@ export const MESSAGES = {
 	assignee: 'Choose an active teammate or nobody.',
 	dueOn: 'Enter a date between 2000-01-01 and 2100-12-31.',
 	milestone: 'Choose an open milestone of this project or none.',
+	type: 'Choose a type.',
 	stale: 'Reload the page and try again.',
 	archived: 'Project is archived.',
 	busy: 'Busy, try again.'
@@ -89,6 +92,8 @@ export interface TaskFields {
 	dueOn: string | null;
 	/** RB-08: a live milestone of the same project (open, or the closed one already assigned), or none. */
 	milestoneId: string | null;
+	/** RB-12: Task, Bug, Feature request or Improvement. */
+	type: TaskType;
 }
 export type TaskField = keyof TaskFields;
 
@@ -134,6 +139,11 @@ const parseMilestone = (raw: string) => {
 	return isUuid(v) ? { value: v.toLowerCase() } : { value: undefined, error: MESSAGES.milestone };
 };
 
+const parseType = (raw: string) =>
+	(TASK_TYPES as readonly string[]).includes(raw)
+		? { value: raw as TaskType }
+		: { value: undefined, error: MESSAGES.type };
+
 const PARSERS: {
 	[K in TaskField]: (raw: string) => { value: TaskFields[K] | undefined; error?: string };
 } = {
@@ -143,7 +153,8 @@ const PARSERS: {
 	priority: parsePriority,
 	assigneeId: parseAssignee,
 	dueOn: parseDue,
-	milestoneId: parseMilestone
+	milestoneId: parseMilestone,
+	type: parseType
 };
 export const TASK_FIELDS = Object.keys(PARSERS) as TaskField[];
 

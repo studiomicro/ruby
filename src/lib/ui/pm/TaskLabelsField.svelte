@@ -1,6 +1,7 @@
 <!--
 	TaskLabelsField: a task's labels in the sidebar (RB-08): the chips, and a checkbox list of the project's labels
-	that replaces the set (`?/labelsSet`, at most `max`). Works without JavaScript; with it, saves in place.
+	that replaces the set (`?/labelsSet`, at most `max`). Works without JavaScript; with it, saves in place. RB-12: team
+	labels (`teamLabelId`) and project labels (`labelId`) in two groups of one form; `max` counts both together.
 -->
 <script lang="ts">
 	import { enhance } from '$app/forms';
@@ -14,13 +15,15 @@
 	let {
 		current,
 		labels,
+		teamLabels = [],
 		archived,
 		answer,
 		settingsHref,
 		max
 	}: {
-		current: readonly Label[];
+		current: readonly (Label & { scope?: 'project' | 'team' })[];
 		labels: readonly Label[];
+		teamLabels?: readonly Label[];
 		archived: boolean;
 		answer: PmAnswer | null;
 		settingsHref: string;
@@ -35,13 +38,13 @@
 	<h2 class="title">Labels</h2>
 	{#if current.length > 0}
 		<div class="chips">
-			{#each current as l (l.id)}<LabelChip name={l.name} color={l.color} />{/each}
+			{#each current as l (l.id)}<LabelChip name={l.name} color={l.color} scope={l.scope} />{/each}
 		</div>
 	{:else}
 		<p class="none">None</p>
 	{/if}
 	{#if !archived}
-		{#if labels.length === 0}
+		{#if labels.length === 0 && teamLabels.length === 0}
 			<p class="none"><a href={settingsHref}>Add labels in Settings</a></p>
 		{:else}
 			<details class="edit" open={answer !== null && !answer.ok}>
@@ -57,8 +60,23 @@
 						};
 					}}
 				>
+					{#if teamLabels.length > 0}
+						<fieldset>
+							<legend class="group">Team</legend>
+							{#each teamLabels as l (l.id)}
+								<label class="check"
+									><input
+										type="checkbox"
+										name="teamLabelId"
+										value={l.id}
+										checked={chosen.has(l.id)}
+									/><LabelChip name={l.name} color={l.color} scope="team" /></label
+								>
+							{/each}
+						</fieldset>
+					{/if}
 					<fieldset>
-						<legend class="sr-only">Labels (up to {max})</legend>
+						<legend class={teamLabels.length > 0 ? 'group' : 'sr-only'}>This project</legend>
 						{#each labels as l (l.id)}
 							<label class="check"
 								><input
@@ -68,6 +86,8 @@
 									checked={chosen.has(l.id)}
 								/><LabelChip name={l.name} color={l.color} /></label
 							>
+						{:else}
+							<p class="none"><a href={settingsHref}>Add project labels in Settings</a></p>
 						{/each}
 					</fieldset>
 					<p class="hint">Up to {max} labels.</p>
@@ -141,6 +161,13 @@
 		padding: 0;
 		border: 0;
 		min-width: 0;
+	}
+	.group {
+		margin-bottom: 2px;
+		padding: 0;
+		color: var(--muted);
+		font-size: 12px;
+		font-weight: 500;
 	}
 	.check {
 		display: flex;
