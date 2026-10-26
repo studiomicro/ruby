@@ -1,0 +1,12 @@
+docs/
+.claude/
+CLAUDE.md
+package-lock.json
+.svelte-kit/
+.wrangler/
+build/
+test-results/
+playwright-report/
+e2e/.auth/
+migrations/
+**/worker-configuration.d.ts
