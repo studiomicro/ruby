@@ -15,6 +15,7 @@ import {
 } from '#lib/server/tasks/validation';
 import { now } from '#lib/server/util';
 import { bulkUpdate } from '#lib/server/pm/bulk';
+import { bulkThrottled } from '#lib/server/pm/bulk-throttle';
 import { getColumns } from '#lib/server/pm/columns';
 import { taskExtras, withExtras } from '#lib/server/pm/extras';
 import { listLabels } from '#lib/server/pm/labels';
@@ -122,6 +123,9 @@ export const actions: Actions = {
 	 */
 	bulk: async (event) => {
 		const { user, project } = await projectFromParams(event);
+		const at = now();
+		const throttled = await bulkThrottled(event, user, at);
+		if (throttled) return throttled;
 		const form = await readFormBody(event.request, 32 * 1024);
 		const parsed = parseBulk(form);
 		if (!parsed.ok)
@@ -134,7 +138,7 @@ export const actions: Actions = {
 			project.id,
 			parsed.taskIds,
 			parsed.changes,
-			now()
+			at
 		);
 		if (!result.ok) return pmRefused('bulk', result, PROJECT_NOT_FOUND);
 		const n = result.updated;

@@ -24,7 +24,8 @@ export const CLIENT_MAX_ATTEMPTS = 100;
  * - per user (overUserAttemptLimit): `account-password` (the account page's password proof), and for the features
  *   built on this foundation `upload` (RB-04), `comment-create` (RB-03), `search` (RB-02), and `hr-reveal` and
  *   `hr-export` (RB-05), `leave-request` (RB-06), each with the `max` its PRD names, and the mention picker's
- *   `mention-search` (RB-03, a one-minute budget only) and Report an issue's `issue-report` (RB-12, 20 a minute).
+ *   `mention-search` (RB-03, a one-minute budget only) and Report an issue's `issue-report` (RB-12, 20 a minute), and `bulk-edit` (RB-12, 30 bulk requests per
+ *   10 minutes on the project list and the Issues page together).
  */
 export const THROTTLE_SCOPES = [
 	'sign-in',
@@ -38,7 +39,8 @@ export const THROTTLE_SCOPES = [
 	'hr-reveal',
 	'hr-export',
 	'leave-request',
-	'issue-report'
+	'issue-report',
+	'bulk-edit'
 ] as const;
 export type ThrottleScope = (typeof THROTTLE_SCOPES)[number];
 

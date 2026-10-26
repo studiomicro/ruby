@@ -9,12 +9,14 @@ import { parseIssueParams } from '#lib/server/issues/filters';
 import { issuesBulkUpdate } from '#lib/server/pm/bulk';
 import { createLabel, setTaskLabels } from '#lib/server/pm/labels';
 import { createTeamLabel, deleteTeamLabel, updateTeamLabel } from '#lib/server/pm/team-labels';
-import { labelNameKey } from '#lib/server/pm/validation';
+import { labelNameKey, PM_LIMITS, PM_MESSAGES } from '#lib/server/pm/validation';
+import { THROTTLE_MINUTE_MS, THROTTLE_WINDOW_MS } from '#lib/server/auth/throttle';
 import { saveView } from '#lib/server/pm/views';
 import { searchAll } from '#lib/server/search/repo';
 import { patchTask } from '#lib/server/tasks/repo';
 import { parsePatch } from '#lib/server/tasks/validation';
 import { renderMarkdown } from '#lib/shared/markdown';
+import { pinToWindowStart } from '../helpers/clock';
 import { openLocalD1 } from '../helpers/d1';
 import { fakeEvent } from '../helpers/event';
 import { archive, clearAll, seedProject, seedTask, taskRow } from '../helpers/seed-tasks';
@@ -907,6 +909,50 @@ describe('Issues bulk', () => {
 	});
 });
 
+describe('bulk throttle (red team L3)', () => {
+	it('30 bulk requests per user per 10 minutes, project list and Issues together; the 31st is 429 and writes nothing', async () => {
+		pinToWindowStart(THROTTLE_WINDOW_MS);
+		const w = await world();
+		const t = await seedTask(db, w.member, w.ops);
+		const form = (priority: string): [string, string][] => [
+			['taskId', t.id],
+			['priority', priority]
+		];
+		for (let i = 0; i < 15; i++) {
+			expect(
+				pm(
+					await run(issuesPage.actions.bulk, req(w.member, '/issues?/bulk', { form: form('low') }))
+				).ok
+			).toBe(true);
+			expect(
+				pm(
+					await run(
+						projectPage.actions.bulk,
+						req(w.member, '/projects/OPS?/bulk', { params: { key: 'OPS' }, form: form('low') })
+					)
+				).ok
+			).toBe(true);
+		}
+		for (const over of [
+			await run(issuesPage.actions.bulk, req(w.member, '/issues?/bulk', { form: form('urgent') })),
+			await run(
+				projectPage.actions.bulk,
+				req(w.member, '/projects/OPS?/bulk', { params: { key: 'OPS' }, form: form('urgent') })
+			)
+		]) {
+			expect(status(over)).toBe(429);
+			expect(pm(over)).toMatchObject({ ok: false, message: PM_MESSAGES.bulkThrottled });
+		}
+		expect((await taskRow(db, t.id))!.priority).toBe('low');
+		// Another user has a budget of their own.
+		expect(
+			pm(await run(issuesPage.actions.bulk, req(w.other, '/issues?/bulk', { form: form('high') })))
+				.ok
+		).toBe(true);
+		expect(PM_LIMITS.bulkPerWindow).toBe(30);
+	});
+});
+
 describe('project bulk (RB-08 bar)', () => {
 	it("sets the type and adds a team label inside one project; another project's task fails the request", async () => {
 		const w = await world();
@@ -1060,13 +1106,9 @@ describe('Report an issue', () => {
 	});
 
 	it('10 concurrent reports in one project get numbers 1..10; the 21st report in a minute is 429', async () => {
-		// Start at the beginning of a minute, so the 21 reports share one budget window.
-		vi.useFakeTimers({ toFake: ['Date'], now: Date.UTC(2026, 9, 26, 3, 0, 1) });
-		try {
-			await reportBurst();
-		} finally {
-			vi.useRealTimers();
-		}
+		// The 21 reports share one budget window.
+		pinToWindowStart(THROTTLE_MINUTE_MS);
+		await reportBurst();
 	});
 
 	async function reportBurst() {

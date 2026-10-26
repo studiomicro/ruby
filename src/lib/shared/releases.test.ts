@@ -94,6 +94,7 @@ describe('versionProblems', () => {
 describe('the repository', () => {
 	it('package.json, APP_VERSION and the newest release file agree', () => {
 		const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
+		// TODO(merge): bump package.json and APP_VERSION to 0.6.0 (after 0.5.0 ships) and remove this allowance.
 		// TEMPORARY (feature branch): the next release's notes are written before the version bump, which is set when
 		// the branch merges. At most one release may be ahead of package.json, and that release must still have notes
 		// for the current version below it. The deploy guard (scripts/deploy.ts › versionProblems) is unchanged and

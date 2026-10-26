@@ -129,7 +129,19 @@ describe('access matrix (AC1-AC3, AC7)', () => {
 		expect(page.compensation).toBeNull();
 		expect(page.hrInfo).toBeNull();
 		const text = JSON.stringify(page);
-		for (const secret of [`EMP-${w.tag}`, '2024-03-04', NIK, NIK.slice(-4), 'Rahasia', 'v1.'])
+		// The last four NIK digits are checked as a value or masked form, never bare: four digits can occur inside a
+		// random UUID in the payload.
+		const last4 = NIK.slice(-4);
+		for (const secret of [
+			`EMP-${w.tag}`,
+			'2024-03-04',
+			NIK,
+			`"${last4}"`,
+			`•••• ${last4}`,
+			'nik_last4',
+			'Rahasia',
+			'v1.'
+		])
 			expect(text).not.toContain(secret);
 		expect(text).toContain('Fictional analyst');
 	});

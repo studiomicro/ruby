@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { expectNoHorizontalOverflow } from './helpers';
+import { expectNoHorizontalOverflow, submitReport } from './helpers';
 
 /**
  * Issues and team labels at iPhone 17 / 17 Pro / 18 Pro (402 × 874), 440 × 956, 360 px and desktop: the Issues list
@@ -37,7 +37,7 @@ async function reportIssue(page: Page, key: string, title: string) {
 	await page.goto(`/issues/new?project=${key}`);
 	await expect(page.getByLabel('Project')).toHaveValue(key);
 	await page.getByLabel('Title').fill(title);
-	await page.getByRole('button', { name: 'Report issue' }).click();
+	await submitReport(page);
 	await expect(page).toHaveURL(new RegExp(`/projects/${key}/tasks/\\d+\\?reported=`));
 }
 
@@ -117,7 +117,7 @@ test('Report an issue: single column, fits, files a task', async ({ page }, info
 	await expectTapTarget(page, page.getByRole('button', { name: 'Report issue' }));
 	await page.getByLabel('Project').selectOption(key);
 	await page.getByLabel('Title').fill(`Reported from ${info.project.name}`);
-	await page.getByRole('button', { name: 'Report issue' }).click();
+	await submitReport(page);
 	await expect(page).toHaveURL(new RegExp(`/projects/${key}/tasks/\\d+\\?reported=0-0`));
 	await expect(page.getByText(new RegExp(`Reported ${key}-\\d+`)).first()).toBeVisible();
 	await expect(page.getByText('Bug', { exact: true }).first()).toBeVisible();
@@ -181,7 +181,7 @@ test('without JavaScript: Report shows field errors, then files the task', async
 		await page.getByRole('button', { name: 'Report issue' }).click();
 		await expect(page.getByText('Enter a title.')).toBeVisible();
 		await page.getByLabel('Title').fill('Filed without JavaScript');
-		await page.getByRole('button', { name: 'Report issue' }).click();
+		await submitReport(page);
 		await expect(page).toHaveURL(new RegExp(`/projects/${key}/tasks/\\d+\\?reported=`));
 		await expect(page.getByText(new RegExp(`Reported ${key}-\\d+`))).toBeVisible();
 		await page.goto(`/issues?project=${key}&type=bug`);

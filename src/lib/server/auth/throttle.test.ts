@@ -50,6 +50,7 @@ describe('every scope the features need exists', () => {
 		expect([...THROTTLE_SCOPES].sort()).toEqual(
 			[
 				'account-password',
+				'bulk-edit',
 				'comment-create',
 				'hr-export',
 				'hr-reveal',

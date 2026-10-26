@@ -36,6 +36,8 @@ export const PM_LIMITS = {
 	bulkMax: 100,
 	/** `assigned` notifications one bulk request writes at most (one recipient per request; red team L2). */
 	bulkNotifyMax: 10,
+	/** RB-12 (red team L3): bulk requests one user may send per 10-minute window, project list and Issues together. */
+	bulkPerWindow: 30,
 	/** RB-12: live team labels (workspace-wide, admins manage them). */
 	teamLabelsMax: 100,
 	/** RB-12: stored query of an Issues view (more keys than a project view; worst case about 900). */
@@ -75,6 +77,7 @@ export const PM_MESSAGES = {
 	bulkTooMany: `Select at most ${PM_LIMITS.bulkMax} tasks at once.`,
 	bulkNoChange: 'Choose at least one change.',
 	bulkGone: 'Some tasks no longer exist, reload.',
+	bulkThrottled: 'Too many bulk edits in a short time. Wait a few minutes and try again.',
 	stale: 'Reload the page and try again.',
 	changed: 'This was changed meanwhile. The page now shows the current version.'
 } as const;

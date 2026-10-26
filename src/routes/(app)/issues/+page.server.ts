@@ -5,6 +5,7 @@ import { requireUser } from '#lib/server/guards';
 import { activeFilterCount, ISSUE_LIMITS, parseIssueParams } from '#lib/server/issues/filters';
 import { cleanIssueFilters, issueFilterOptions, listIssues } from '#lib/server/issues/query';
 import { BULK_ARCHIVED, issuesBulkUpdate } from '#lib/server/pm/bulk';
+import { bulkThrottled } from '#lib/server/pm/bulk-throttle';
 import { canonicalizeQuery } from '#lib/server/pm/query';
 import { pmInvalid, pmOk, pmRefused } from '#lib/server/pm/route';
 import {
@@ -73,6 +74,9 @@ export const actions: Actions = {
 	 */
 	bulk: async (event) => {
 		const user = requireUser(event);
+		const at = now();
+		const throttled = await bulkThrottled(event, user, at);
+		if (throttled) return throttled;
 		const form = await readFormBody(event.request, 32 * 1024);
 		const parsed = parseBulk(form, ISSUE_BULK_FIELDS);
 		if (!parsed.ok)
@@ -84,7 +88,7 @@ export const actions: Actions = {
 			user,
 			parsed.taskIds,
 			parsed.changes,
-			now()
+			at
 		);
 		if (!result.ok) {
 			if (result.reason === 'archived')

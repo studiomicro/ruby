@@ -419,7 +419,9 @@ export async function createTask(
 ): Promise<TaskWrite<{ id: string; number: number; labelsApplied: number }>> {
 	for (let attempt = 0; attempt < LIMITS.createAttempts; attempt++) {
 		const id = options.id ?? newId();
-		const created = sql`exists (select 1 from tasks t where t.id = ${id})`;
+		// SQL: the task row this batch wrote (not merely "a task with this id exists": a client id may name another
+		// task, and then the insert below writes nothing). Every dependent statement of the batch is keyed on it.
+		const created = sql`exists (select 1 from tasks t where t.id = ${id} and t.project_id = ${project.id} and t.created_by = ${actor.id} and t.created_at = ${at} and t.updated_at = ${at} and t.deleted_at is null)`;
 		const projectLabels = JSON.stringify(options.labels?.labelIds ?? []);
 		const teamLabelIds = JSON.stringify(options.labels?.teamLabelIds ?? []);
 		const labelLinks = options.labels
