@@ -19,7 +19,7 @@ copied material. Every design below is Ruby's own, built on Ruby's existing modu
 | RB-10 | live | Design kit (Card, Table, Tabs, Dialog, DropdownMenu, Toaster, Checkbox, Switch) |
 | RB-11 | live | Release notes and reload; version guard in deploy |
 | RB-09 | in build, migration `0011`, v0.4.0 | `/calendar` (tasks, milestones, events, time off), reminders, the `ruby-jobs` cron Worker, e-mail reminders behind a flag |
-| RB-12 | in build, migration `0012`, v0.5.0 | Task types (Task, Bug, Feature request, Improvement), cross-project `/issues` with filters, saved views, bulk edit, Report an issue, team labels |
+| RB-12 | in build, migration `0012`, v0.6.0 | Task types (Task, Bug, Feature request, Improvement), cross-project `/issues` with filters, saved views, bulk edit, Report an issue, team labels |
 
 RB-05, RB-06 and RB-07 are HR features and do not affect this roadmap.
 
@@ -34,29 +34,29 @@ Workers + D1 + R2, English only, invite-only, no AI).
 | 1 | Issue types | RB-12: four fixed types for every project | Partial | Phase B: per-project enable/disable of the four types. Custom type names: later |
 | 2 | Workflow states per project | RB-08: rename, hide and WIP-limit the six fixed statuses | Partial | Keep the six stored statuses (Ruby differs: one shared "closed" meaning for search, My tasks, calendar, insights). Fully custom states: later, own PRD (rebuild of `tasks`) |
 | 3 | Labels | RB-08 project labels, RB-12 team labels | Have | — |
-| 4 | Custom fields | none | Missing | Phase B, RB-20 |
+| 4 | Custom fields | none | Missing | Phase B, RB-23 |
 | 5 | Cycles (time-boxed iterations, carry-over of unfinished work) | RB-08 milestones are dated targets, not time boxes | Missing | **Phase A, RB-17** |
 | 6 | Kanban board | RB-01 board, RB-08 WIP and column settings | Have | Swimlanes come with RB-18 |
 | 7 | Table view (column choice) | RB-01 list is a fixed-column table | Partial | **Phase A, RB-18** |
-| 8 | Timeline view | none (tasks have no start date) | Missing | Phase B, RB-23 (adds `starts_on`) |
+| 8 | Timeline view | none (tasks have no start date) | Missing | Phase B, RB-25 (adds `starts_on`) |
 | 9 | Calendar view | RB-09 `/calendar` with `project=KEY` filter | Partial | Phase B: a Calendar tab on the project page that opens RB-09 filtered; no second calendar |
 | 10 | Saved views as tabs | RB-08 / RB-12 personal saved views in a picker | Partial | **Phase A, RB-18** (pinned tabs). Team-shared views: Phase B |
 | 11 | Two-level grouping, swimlanes | none | Missing | **Phase A, RB-18** |
 | 12 | Subtasks | RB-08 checklists (steps, no own status) | Partial | **Phase A, RB-16** (sub-issues) |
 | 13 | Issue relations (blocks, relates, duplicates) | none | Missing | **Phase A, RB-16** |
 | 14 | Project dashboards (throughput, burnup with projection, breakdown) | RB-08 milestone progress bar only | Missing | **Phase A, RB-19** (fixed set of charts). Configurable widgets and a workspace dashboard: Phase B |
-| 15 | Quick actions (a saved set of changes applied to an issue) | RB-08/RB-12 bulk edit | Partial | Phase B, RB-21 |
-| 16 | Auto-assignment when an issue enters a state | none | Missing | Phase B, RB-21 (rule evaluated inside the write batch; no job) |
-| 17 | Auto-archive of finished issues | none | Missing | Phase B, RB-22, as a read-time rule (closed more than N days ago is hidden from the board); no background job |
+| 15 | Quick actions (a saved set of changes applied to an issue) | RB-08/RB-12 bulk edit | Partial | Phase B, RB-22 |
+| 16 | Auto-assignment when an issue enters a state | none | Missing | Phase B, RB-22 (rule evaluated inside the write batch; no job) |
+| 17 | Auto-archive of finished issues | none | Missing | Phase B, RB-24, as a read-time rule (closed more than N days ago is hidden from the board); no background job |
 | 18 | Public read-only share links | none | Missing | **Ruby differs.** Out of scope by default: Access + invite-only, data is internal (decision 3) |
 | 19 | Initiatives (group related work) | RB-08 milestones inside a project; RB-12 team labels across projects | Partial | Later; revisit after cycles and insights are used |
 | 20 | Notes board / whiteboard canvas | none | Missing | Out of scope: a canvas editor is a large client app with its own sync model; the KB covers written notes |
 | 21 | Docs: tree, Markdown, revisions, mentions, embedded files, comments | RB-02, RB-03, RB-04 | Have | — |
-| 22 | Docs: links from pages to issues | Markdown links only; no back-links on the task | Partial | Phase B, RB-24 (back-links computed on save, like mentions) |
-| 23 | Docs: locked pages | none | Missing | Phase B, RB-24 (author and admins may edit; everyone still reads) |
+| 22 | Docs: links from pages to issues | Markdown links only; no back-links on the task | Partial | Phase B, RB-26 (back-links computed on save, like mentions) |
+| 23 | Docs: locked pages | none | Missing | Phase B, RB-26 (author and admins may edit; everyone still reads) |
 | 24 | Docs: private pages | none | Missing | **Ruby differs.** Out of scope: conflicts with "every active user sees every page" |
-| 25 | Docs: favorites | none | Missing | Phase B, RB-24 (personal, like saved views) |
-| 26 | Comment threads with replies | RB-03 flat comments | Partial | Phase B, RB-25 (one reply level) |
+| 25 | Docs: favorites | none | Missing | Phase B, RB-26 (personal, like saved views) |
+| 26 | Comment threads with replies | RB-03 flat comments | Partial | Phase B, RB-27 (one reply level) |
 | 27 | Notification inbox | RB-03 | Have | — |
 | 28 | Notifications by e-mail or chat apps, per-member preferences | RB-09 e-mail for reminders only (behind a flag) | Partial | Later; needs a verified sender domain and a digest design |
 | 29 | REST API with OpenAPI and API keys | none (form actions and a few internal JSON routes) | Missing | Later (decision 4) |
@@ -94,38 +94,38 @@ WIP limits, checklists, HR modules, release notes.
 
 | Order | Id | Feature | Migration | Version | Risk | PRD |
 |---|---|---|---|---|---|---|
-| 1 | RB-16 | Sub-issues and issue relations | `0013_subissues_relations.sql` | 0.6.0 | Large | `docs/features/rb-16-subissues-relations/PRD.md` |
-| 2 | RB-17 | Cycles | `0014_cycles.sql` | 0.7.0 | Large | `docs/features/rb-17-cycles/PRD.md` |
-| 3 | RB-18 | Grouped table, swimlanes and view tabs | `0015_view_tabs.sql` | 0.8.0 | Medium | `docs/features/rb-18-grouped-views/PRD.md` |
-| 4 | RB-19 | Project insights (throughput, burnup, breakdown) | `0016_insights_indexes.sql` | 0.9.0 | Medium | `docs/features/rb-19-project-insights/PRD.md` |
+| 1 | RB-16 | Sub-issues and issue relations | `0016_subissues_relations.sql` | 0.8.0 | Large | `docs/features/rb-16-subissues-relations/PRD.md` |
+| 2 | RB-17 | Cycles | `0017_cycles.sql` | 0.9.0 | Large | `docs/features/rb-17-cycles/PRD.md` |
+| 3 | RB-18 | Grouped table, swimlanes and view tabs | `0018_view_tabs.sql` | 0.10.0 | Medium | `docs/features/rb-18-grouped-views/PRD.md` |
+| 4 | RB-19 | Project insights (throughput, burnup, breakdown) | `0019_insights_indexes.sql` | 0.11.0 | Medium | `docs/features/rb-19-project-insights/PRD.md` |
 
 Why this order: sub-issues and relations change the task model and every later feature reads them (grouping by
 parent, "blocked" filters, insights scope). Cycles come next because grouping and insights both offer a cycle
 dimension. Grouping is pure read and UI. Insights is read-only and benefits from all three.
 
 Shared rules for Phase A:
-- Migration numbers start at `0013` (`0011` RB-09 and `0012` RB-12 are taken). If a PRD ships out of order, it keeps
+- Migration numbers start at `0016` (`0011` RB-09, `0012` RB-12 and `0013` to `0015` RB-21 are taken). If a PRD ships out of order, it keeps
   its number; wrangler applies by file name and each migration is additive or a leaf change.
 - Drizzle snapshot files: RB-06 already used `0011_snapshot.json` (drizzle-kit chains by file name). Each engineer
   takes the next free snapshot file name and records the mapping in the PRD summary; the journal tag is the
   migration's file name.
 - Each feature ships alone with its release note (`src/lib/content/releases/<version>.md`) and the
-  `package.json` / `APP_VERSION` bump (RB-11 deploy guard). Versions 0.6.0 to 0.9.0 in the order above; if an
+  `package.json` / `APP_VERSION` bump (RB-11 deploy guard). Versions 0.8.0 to 0.11.0 in the order above; if an
   earlier one slips, renumber the later ones at ship time so versions stay ascending.
 - All four depend on RB-12 being merged (they extend `/issues`, `issues/query.ts`, the rebuilt `saved_views` and
   `issuesBulkUpdate`). If RB-12 is still open, the engineer waits; do not build against the pre-RB-12 schema.
 
 ### Phase B (PRD when Phase A is live)
 
-- RB-20 Custom fields: per-project fields of type text, number, date, single select, multi select, user; 20 per
+- RB-23 Custom fields: per-project fields of type text, number, date, single select, multi select, user; 20 per
   project; filter, sort, group and bulk; values in a typed side table, not JSON on `tasks`.
-- RB-21 Quick actions and auto-assignment: per-project named action sets ("Send to review": status In review,
+- RB-22 Quick actions and auto-assignment: per-project named action sets ("Send to review": status In review,
   assignee lead); rule "when status becomes X, assign Y" evaluated inside the same write batch.
-- RB-22 Auto-archive as a display rule: closed tasks whose `completed_at` is older than N days (per project, default
+- RB-24 Auto-archive as a display rule: closed tasks whose `completed_at` is older than N days (per project, default
   14) are hidden from the board and default list; still searchable and filterable.
-- RB-23 Timeline: `tasks.starts_on`, a server-rendered bar chart per project, dependencies drawn from RB-16 "blocks".
-- RB-24 Docs extras: favorites (personal), locked pages, page to issue back-links.
-- RB-25 Comment replies (one level).
+- RB-25 Timeline: `tasks.starts_on`, a server-rendered bar chart per project, dependencies drawn from RB-16 "blocks".
+- RB-26 Docs extras: favorites (personal), locked pages, page to issue back-links.
+- RB-27 Comment replies (one level).
 - Team-shared saved views; workspace-level insights across projects; per-project type enablement; project Calendar
   tab linking RB-09; passkeys if decision 8 says so.
 
@@ -166,5 +166,5 @@ per-project roles, billing editions, self-hosting outside Cloudflare.
 | 6 | MCP server | **Later, on top of the API tokens.** Read first, write behind its own scope |
 | 7 | Pull-request linking from code forges | **Later, GitHub only.** Needs an inbound webhook path that bypasses Access and a per-repository secret |
 | 8 | Sign-in options | **Google: no in-app OAuth**, configure Google as the Cloudflare Access identity provider. **Passkeys: Phase B candidate**, as a second factor or password replacement for app accounts |
-| 9 | Custom fields and per-project workflow | **Custom fields in Phase B (RB-20). Custom workflow states: later**; the six stored statuses stay |
-| 10 | Auto-archive | **Phase B (RB-22) as a display rule**, 14 days, no background job |
+| 9 | Custom fields and per-project workflow | **Custom fields in Phase B (RB-23). Custom workflow states: later**; the six stored statuses stay |
+| 10 | Auto-archive | **Phase B (RB-24) as a display rule**, 14 days, no background job |

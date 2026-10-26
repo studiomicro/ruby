@@ -8,8 +8,7 @@ board, edits to RB-01 create/patch/delete paths, RB-08 `taskExtras`, RB-12 `/iss
 canonicaliser, a new JSON lookup route. Pipeline: engineer + QA + red team.
 
 Depends on: RB-01, RB-08 (`pm/extras.ts`, milestones), **RB-12 merged** (`/issues`, `parseIssueFilters`,
-`canonicalizeQuery('issues', …)`, rebuilt `saved_views`). Migration **`0013_subissues_relations.sql`** (`0011` RB-09
-and `0012` RB-12 are taken). Version **0.6.0**.
+`canonicalizeQuery('issues', …)`, rebuilt `saved_views`). Migration **`0016_subissues_relations.sql`** (`0011` RB-09, `0012` RB-12 and `0013` to `0015` RB-21 are taken). Version **0.8.0**.
 
 ## Goal
 
@@ -118,7 +117,7 @@ piece of work, and where the duplicates went.
 
 ## Scope
 
-### Migration `0013_subissues_relations.sql`
+### Migration `0016_subissues_relations.sql`
 
 ```
 ALTER TABLE tasks ADD COLUMN parent_id text REFERENCES tasks(id);
@@ -142,7 +141,7 @@ CREATE INDEX task_relations_to_idx ON task_relations(to_task_id, kind);
 
 Additive only. `tasks_fts` and triggers untouched (`parent_id` is not in `UPDATE OF title, description`). Update
 `schema.ts` (`tasks.parentId`, `taskRelations`), new const `RELATION_KINDS` in `src/lib/shared/enums.ts`, the Drizzle
-snapshot (next free snapshot file name; journal tag `0013_subissues_relations`).
+snapshot (next free snapshot file name; journal tag `0016_subissues_relations`).
 
 ### Routes
 
@@ -276,7 +275,7 @@ Authorization and safety
    lookup output carries no description.
 
 Sub-issues
-5. [A] After `0013`, every existing task has `parent_id` NULL, row count and ids unchanged, `integrity_check` ok,
+5. [A] After `0016`, every existing task has `parent_id` NULL, row count and ids unchanged, `integrity_check` ok,
    `foreign_key_check` empty, FTS results identical before and after, `tasks_fts_*` triggers present.
 6. [A] Creating a sub-issue from the parent gives a new numbered task in the same project with `parent_id` set,
    created_by = actor, status `todo`, and the parent's open milestone; a closed milestone is not inherited.
@@ -316,7 +315,7 @@ UI, release, regression
 23. [P] Without JavaScript, the key inputs add and link; with JavaScript the combobox works by keyboard.
 24. [P] Viewport spec at 360, 402, 440 px: no page-level horizontal scroll, tap targets ≥ 44 px, inputs ≥ 16 px.
 25. [M] Dark mode: badges and chips AA-readable; screen reader announces "Blocked" and progress.
-26. [A] Release note `src/lib/content/releases/0.6.0.md`; `package.json` and `APP_VERSION` 0.6.0 (RB-11 guard).
+26. [A] Release note `src/lib/content/releases/0.8.0.md`; `package.json` and `APP_VERSION` 0.8.0 (RB-11 guard).
 27. [A] All RB-01, RB-02, RB-08 and RB-12 tests pass; logs carry ids and counts only, never titles.
 28. [A] `npm run gates` passes; `ENGINEERING_CHECKLIST.md` probes (concurrency at both caps, two tabs, roles crawl,
     soft delete, FTS after create/edit/delete, 360 px, no-JS forms) run and are listed.
@@ -326,7 +325,7 @@ UI, release, regression
 Unit: `parseTaskKey` (case, spaces, bounds, `OPS-0`, `OPS-01`), relation wording → canonical row mapping, filter
 parser and canonicaliser additions (worst-case length), progress maths.
 Integration (`openLocalD1`, `fakeEvent`; extend `test/helpers/seed-tasks.ts` with parents, 50-child parent,
-cross-project relations, archived project): migration test over seeded data applying 0000..0013; guard matrix for
+cross-project relations, archived project): migration test over seeded data applying 0000..0016; guard matrix for
 parent rules; races (links at cap, mutual parenting, relation cap, reverse blocks, link versus delete); duplicate
 cancel batch atomicity; blocked derivation after status change and delete; lookup throttle and FTS escape;
 permission matrix (signed-out, member, admin, deactivated); query-count and `EXPLAIN QUERY PLAN` tests.
@@ -339,7 +338,7 @@ point, unbounded relation fan-out, duplicate-cancel version bypass.
 Nested sub-issues beyond one level; converting checklist steps into sub-issues; moving a sub-issue to another
 project; cascading status or close; auto-closing a parent; relation notifications; blocker-aware scheduling or
 critical path; relation kinds beyond the three; bulk set-parent; showing relations on the board as lines; timeline
-(RB-23); sub-issue templates; undo.
+(RB-25); sub-issue templates; undo.
 
 ## Prerequisites
 
@@ -356,16 +355,16 @@ path; RB-18 adds grouping by parent.
 
 ## Migration plan
 
-1. Write `0013_subissues_relations.sql` by hand as above; generate the Drizzle snapshot (next free snapshot file
+1. Write `0016_subissues_relations.sql` by hand as above; generate the Drizzle snapshot (next free snapshot file
    name) and hand-check it matches.
-2. Migration test: seed with 0000..0012, apply 0013, assert criterion 5.
-3. Deploy: `npm run deploy` records the D1 Time Travel bookmark, applies 0013 remotely (additive), builds, deploys.
+2. Migration test: seed with 0000..0015, apply 0016, assert criterion 5.
+3. Deploy: `npm run deploy` records the D1 Time Travel bookmark, applies 0016 remotely (additive), builds, deploys.
    Rollback: `wrangler rollback` for the app; the column and table can stay (old code ignores them); restore the
    bookmark only if data must be reverted.
 
 ## Tracker impact
 
-New `docs/TASKS.md` item "RB-16 Sub-issues and issue relations (Claude)". `docs/ACCEPTANCE.md` rows to add: `0013`
+New `docs/TASKS.md` item "RB-16 Sub-issues and issue relations (Claude)". `docs/ACCEPTANCE.md` rows to add: `0016`
 keeps tasks and FTS (Automated), parent and relation cap races (Automated), viewport spec for the task page
 sections (Pass). Moves the "subtasks as separate tasks" and "task dependencies" items out of RB-08's out-of-scope
 list.

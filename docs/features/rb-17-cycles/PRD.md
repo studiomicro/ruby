@@ -8,7 +8,7 @@ many tasks at once, new manager-only surfaces, edits to RB-01 patch/update/creat
 `/issues` filters, RB-16 sub-issue creation. Pipeline: engineer + QA + red team.
 
 Depends on: RB-01, RB-08 (bulk, saved views, `canManageProject`), **RB-12 merged** (`/issues`, `saved_views`
-rebuild), **RB-16 merged** (sub-issue create path). Migration **`0014_cycles.sql`**. Version **0.7.0**.
+rebuild), **RB-16 merged** (sub-issue create path). Migration **`0017_cycles.sql`**. Version **0.9.0**.
 
 ## Goal
 
@@ -97,7 +97,7 @@ projects, and `cycle=<uuid>` is offered only when exactly one project is chosen 
 
 ## Scope
 
-### Migration `0014_cycles.sql`
+### Migration `0017_cycles.sql`
 
 ```
 CREATE TABLE cycles (
@@ -134,7 +134,7 @@ CREATE INDEX cycle_carryovers_task_idx ON cycle_carryovers(task_id);
 
 Additive. `julianday` on column values is deterministic and allowed in a CHECK; the engineer proves the CHECK
 rejects a 57-day cycle and a reversed range in a migration test. `tasks_fts` untouched. `schema.ts`, Drizzle snapshot
-(next free snapshot file name; journal tag `0014_cycles`).
+(next free snapshot file name; journal tag `0017_cycles`).
 
 ### Routes
 
@@ -258,7 +258,7 @@ Authorization and safety
 4. [A] Name and goal render as plain text; `<script>` and Markdown in the goal show literally.
 
 Cycles
-5. [A] After `0014`, every task has `cycle_id` NULL, counts and ids unchanged, `integrity_check` ok,
+5. [A] After `0017`, every task has `cycle_id` NULL, counts and ids unchanged, `integrity_check` ok,
    `foreign_key_check` empty, FTS unchanged; the length CHECK rejects 57 days and a reversed range at the DB level.
 6. [A] Creating with overlapping dates is refused; touching ranges (one ends the 14th, next starts the 15th) are
    accepted; ranges sharing a day are refused; the 201st live and 13th upcoming are refused; concurrency as stated.
@@ -291,7 +291,7 @@ UI, release, regression
 18. [P] Viewport spec at 360, 402, 440 px: no page-level horizontal scroll; tap targets ≥ 44 px; dialog clears
     the home indicator; focus returns.
 19. [M] Dark mode progress bar and chips AA; keyboard-only completion flow; screen reader reads progress text.
-20. [A] Release note `0.7.0.md`; `package.json` and `APP_VERSION` 0.7.0.
+20. [A] Release note `0.9.0.md`; `package.json` and `APP_VERSION` 0.9.0.
 21. [A] All RB-01, RB-08, RB-12 and RB-16 tests pass; statement budgets hold with 10 and 500 tasks; plans use the
     new indexes; logs hold ids and counts only.
 22. [A] `npm run gates` passes; checklist probes (concurrency at every cap, two tabs, roles crawl, soft delete,
@@ -301,7 +301,7 @@ UI, release, regression
 
 Unit: `cycleStatus` at edges and time zones, `defaultNextRange`, length maths, filter parser and canonicaliser
 (`current`, `none`, uuid, garbage).
-Integration: migration test 0000..0014; overlap matrix; create/update/delete/complete races; completion atomicity
+Integration: migration test 0000..0017; overlap matrix; create/update/delete/complete races; completion atomicity
 with injected failures; 1 000-task completion; manager matrix (member, lead, creator, admin, demoted lead,
 deactivated); bulk with `cycleId`; sub-issue inheritance; `/issues` current-cycle semi-join; query counts and plans;
 fixed-clock saved view.
@@ -331,15 +331,15 @@ Cycles tab (one tab bar: List, Board, Cycles).
 
 ## Migration plan
 
-1. Hand-write `0014_cycles.sql`; generate and hand-check the Drizzle snapshot (next free file name).
-2. Migration test over 0000..0013 seeded data (criterion 5).
+1. Hand-write `0017_cycles.sql`; generate and hand-check the Drizzle snapshot (next free file name).
+2. Migration test over 0000..0016 seeded data (criterion 5).
 3. Deploy via `npm run deploy` (bookmark, additive migration, build, deploy). Rollback: `wrangler rollback`; the
    tables and column are ignored by older code.
 
 ## Tracker impact
 
 New `docs/TASKS.md` item "RB-17 Cycles (Claude)"; closes the "UI polish: List/Board switch twice" item if fixed here
-(quote it in the summary). `docs/ACCEPTANCE.md` rows: completion atomicity and race (Automated), `0014` keeps tasks
+(quote it in the summary). `docs/ACCEPTANCE.md` rows: completion atomicity and race (Automated), `0017` keeps tasks
 (Automated), viewport spec for cycles pages (Pass).
 
 ## Owner decisions (proposed defaults)

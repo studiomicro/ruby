@@ -4,7 +4,7 @@ Request: owner, 2026-10-26, "add issues pages" and "add labels". RB-12 is propos
 
 Risk tier: **Large**. Reasons: a column added to the hot `tasks` table (FTS triggers), a rebuild of the live `saved_views` table, a new cross-project query over every task, a cross-project bulk write, edits to RB-01/RB-02/RB-08 code (task detail, create, search, bulk, label set), a new admin surface. Pipeline: engineer + QA + red team.
 
-Depends on: RB-01 (tasks), RB-02 (search), RB-03 (task detail slots untouched), RB-08 (labels, saved views, bulk; live as migration `0010_pm_plus.sql`), RB-11 (release notes). Migration `0012_issues_labels.sql` is the next free number after RB-09's `0011` (in build). If `0011` is not merged yet, `0012` still applies (wrangler orders by file name); do not reuse `0011`. Version **0.5.0** (RB-09 is 0.4.0).
+Depends on: RB-01 (tasks), RB-02 (search), RB-03 (task detail slots untouched), RB-08 (labels, saved views, bulk; live as migration `0010_pm_plus.sql`), RB-11 (release notes). Migration `0012_issues_labels.sql` is the next free number after RB-09's `0011` (in build). If `0011` is not merged yet, `0012` still applies (wrangler orders by file name); do not reuse `0011`. Version **0.6.0** (RB-09 is 0.4.0).
 
 ## Goal
 
@@ -288,7 +288,7 @@ Report an issue
 
 Navigation, release, other
 33. [A] `nav.ts`: Issues is item 3 of section 0, appears once, is not in `TAB_ITEMS`, is listed first after Report in `moreItems()`; Report is exported as `REPORT_ISSUE` and rendered as a sidebar-head icon button and the first More row; sidebar item count and sections unchanged otherwise.
-34. [A] Release note `src/lib/content/releases/0.5.0.md` (front matter `version: 0.5.0`, date, title) and `package.json` / `APP_VERSION` set to 0.5.0 so the RB-11 deploy guard passes. Engineer checks the guard allows 0.5.0 if 0.4.0 has not shipped; otherwise ship in order.
+34. [A] Release note `src/lib/content/releases/0.6.0.md` (front matter `version: 0.6.0`, date, title) and `package.json` / `APP_VERSION` set to 0.6.0 so the RB-11 deploy guard passes. RB-20 ships 0.5.0 first; ship in order.
 35. [P] Viewport spec: `/issues`, `/issues/new`, `/admin/labels` at 360, 402 and 440 px: no horizontal page scroll, tap targets >= 44 px, filter sheet opens, closes and returns focus, bulk bar clears the tab bar and home indicator.
 36. [M] Dark mode: team and project chips AA-readable; keyboard-only run of filters, bulk and Report; screen reader labels on icon-only buttons.
 37. [A] All RB-01, RB-02, RB-03 and RB-08 tests still pass; FTS consistency after create, edit, delete and restore of a typed task; Markdown XSS vectors inert; logs hold ids and counts only, never titles, descriptions or label names.

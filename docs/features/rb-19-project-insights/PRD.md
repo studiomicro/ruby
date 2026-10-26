@@ -9,7 +9,7 @@ cost only).
 
 Depends on: RB-01, RB-08 (milestones), **RB-12** (types, team labels), RB-16 (blocked count) and RB-17 (cycle scope and
 cycle report); a missing dependency's widget is left out and added by that feature. Migration
-**`0016_insights_indexes.sql`**. Version **0.9.0**.
+**`0019_insights_indexes.sql`**. Version **0.11.0**.
 
 ## Goal
 
@@ -88,7 +88,7 @@ labels (assignee names, label names) are plain text in SVG `<text>` (escaped by 
 
 ## Scope
 
-### Migration `0016_insights_indexes.sql`
+### Migration `0019_insights_indexes.sql`
 
 ```
 CREATE INDEX tasks_project_created_idx ON tasks(project_id, created_at) WHERE deleted_at IS NULL;
@@ -97,7 +97,7 @@ CREATE INDEX tasks_project_completed_idx ON tasks(project_id, completed_at)
 ```
 
 Index-only; no table or trigger change. `schema.ts` index declarations, snapshot (next free file name; journal tag
-`0016_insights_indexes`). Two more indexes slow task writes slightly; accepted (RB-12 made the same trade).
+`0019_insights_indexes`). Two more indexes slow task writes slightly; accepted (RB-12 made the same trade).
 
 ### Routes
 
@@ -198,12 +198,12 @@ Tags: [A] Automated, [P] Pass, [M] manual.
    `<script>` renders literally.
 10. [A] Statement count ≤ 10 and constant between 10 and 20 000 tasks; bounds always one JSON parameter; plans use
     `tasks_project_created_idx` and `tasks_project_completed_idx`.
-11. [A] After `0016`, the two indexes exist, `integrity_check` ok, task counts unchanged, FTS unchanged.
+11. [A] After `0019`, the two indexes exist, `integrity_check` ok, task counts unchanged, FTS unchanged.
 12. [A] The 61st load within a minute answers 429 and runs no widget query.
 13. [P] Without JavaScript the page and scope picker work; "Show data" opens.
 14. [P] Viewport spec at 360, 402, 440 px: no horizontal scroll; tap targets ≥ 44 px; charts readable.
 15. [M] Dark mode and light mode chart contrast AA for lines, bars and text; series distinguishable in greyscale.
-16. [A] Release note `0.9.0.md`; versions bumped; all earlier tests pass; `npm run gates` passes; checklist probes
+16. [A] Release note `0.11.0.md`; versions bumped; all earlier tests pass; `npm run gates` passes; checklist probes
     listed.
 
 ## Test plan
@@ -234,7 +234,7 @@ their tables only.
 
 ## Migration plan
 
-1. Hand-write `0016_insights_indexes.sql`; snapshot (next free file name).
+1. Hand-write `0019_insights_indexes.sql`; snapshot (next free file name).
 2. Migration test over seeded data (criterion 11).
 3. `npm run deploy` (bookmark, index creation, build, deploy). Index creation on the production `tasks` table is a
    short write; rollback: `wrangler rollback`; the indexes can stay or be dropped by a later migration.
