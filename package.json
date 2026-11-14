@@ -45,7 +45,7 @@
 		"@cloudflare/workers-types": "^5.20261026.1",
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "1.63.0",
-		"@sveltejs/adapter-cloudflare": "^8.0.1",
+		"@sveltejs/adapter-cloudflare": "^8.0.2",
 		"@sveltejs/kit": "^3.1.0",
 		"@sveltejs/vite-plugin-svelte": "^7.3.1",
 		"@tailwindcss/vite": "^4.3.3",
